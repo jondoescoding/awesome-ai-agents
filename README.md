@@ -11,9 +11,11 @@
 
 This repository features AI agents and workflows that use models from Groq and OpenRouter.
 
-## Agents vs Workflows
+## 🛠 Agents vs Workflows
 
-- Coming Soon
+**Workflows** are systems where LLMs and tools are orchestrated through predefined code paths.
+
+**Agents**, on the other hand, are systems where LLMs dynamically direct their own processes and tool usage, maintaining control over how they accomplish tasks.
 
 ## 🤔 Why Awesome AI Agents & Workflows?
 
