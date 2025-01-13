@@ -1,3 +1,7 @@
+####
+# IMPORTS
+####
+
 # Python Built In Libraries
 from typing import Annotated # used to set additional metadata for a variable  
 from typing_extensions import TypedDict # a type that allows you to define dictionaries with specific key-value types
@@ -11,7 +15,9 @@ from langchain_groq import ChatGroq
 # Local Imports
 from tools import get_trending_tokens, search
 
-# UI
+####
+# UI - Streamlit I
+####
 import streamlit as st
 
 with st.sidebar:
@@ -26,7 +32,9 @@ else:
     st.warning(body="API key is not set. Please set the Groq API key.")
     st.stop()
 
-
+####
+# LOGIC - LANG-GRAPH
+####
 tools = [get_trending_tokens, search]
 llm_with_tools = llm.bind_tools(tools=tools) # this is to make the LLM aware of the tools it has
 
@@ -56,7 +64,7 @@ graph = graph_builder.compile() # allows to graph to become runnable
 
 
 ####
-# UI - Streamlit
+# UI - Streamlit II
 ####
 st.title("🦎💬 CoinGecko Chatbot")
 
@@ -74,6 +82,6 @@ if prompt := st.chat_input():
     st.session_state.messages.append({"role": "user", "content": prompt})
     st.chat_message("user").write(prompt)
     response = graph.invoke({"messages": [("user", prompt)]})
-    msg = response["messages"][-1].content
+    msg = response["messages"][-1].content # pulls ONLY the AI's response from the response dict
     st.session_state.messages.append({"role": "assistant", "content": msg})
     st.chat_message("assistant").write(msg)
