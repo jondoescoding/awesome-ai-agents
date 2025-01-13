@@ -19,8 +19,8 @@ with st.sidebar:
     "[Get an Groq API key](https://console.groq.com/keys)"
     "[![View the source code](https://badgen.net/static/Github/Repository/black?icon=github)](https://github.com/jondoescoding/awesome-ai-agents/tree/main/ai_agents/coingecko_agent)"
 
+    llm = ChatGroq(model="llama3-70b-8192", api_key=groq_api_key)
 
-llm = ChatGroq(model="llama3-70b-8192", api_key=groq_api_key)
 tools = [get_trending_tokens, search]
 llm_with_tools = llm.bind_tools(tools=tools) # this is to make the LLM aware of the tools it has
 
