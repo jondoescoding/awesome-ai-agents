@@ -23,7 +23,8 @@ with st.sidebar:
 if groq_api_key:
     llm = ChatGroq(model="llama3-70b-8192", api_key=groq_api_key)
 else:
-    st.error(body="API key is not set. Please set the Groq API key.")
+    st.warning(body="API key is not set. Please set the Groq API key.")
+    st.stop()
 
 
 tools = [get_trending_tokens, search]
