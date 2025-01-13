@@ -9,7 +9,7 @@ from langgraph.prebuilt import ToolNode, tools_condition
 from langchain_groq import ChatGroq
 
 # Local Imports
-from ai_agents.coingecko_agent.tools import get_trending_tokens, search
+from coingecko_agent.tools import get_trending_tokens, search
 
 # UI
 import streamlit as st
