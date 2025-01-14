@@ -1,0 +1,5 @@
+test/
+vitest.config.ts
+.venv
+readme.md
+requirements.txt
