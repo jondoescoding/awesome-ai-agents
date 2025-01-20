@@ -7,7 +7,7 @@ This script acts as the entrypoint to the AI Agent. Within you'll find that it p
 
 """
 # Python Built In Libraries
-from typing import Annotated # used to set additional metadata for a variable  
+from typing import Annotated, List # used to set additional metadata for a variable  
 from typing_extensions import TypedDict # a type that allows you to define dictionaries with specific key-value types
 import os
 
@@ -20,7 +20,7 @@ from langgraph.prebuilt import (ToolNode, # a pre-built component and node which
                                 tools_condition # a pre-built component and node which uses the conditional_edge to route to the ToolNode if the last message has tool calls. Otherwise, route to the end.
                                 )
 from langchain_groq import ChatGroq
-from langchain_core.messages import SystemMessage
+from langchain_core.messages import SystemMessage, BaseMessage
 
 # Tools
 from tools import get_token_balance, lend_crypto, borrow_crypto
@@ -87,18 +87,24 @@ llm_with_tools = llm.bind_tools(tools=tools)
 
 # State Management
 class State(TypedDict):
-    messages: Annotated[list, add_messages]
+    messages: Annotated[List[BaseMessage], add_messages]
 
 # Graph Builder Setup
 graph_builder = StateGraph(State)
 
 # Chatbot Function
 def chatbot(state: State):
-    # Add system message if it's not already in the messages
+    # Get all messages including history
     messages = state["messages"]
+    
+    # Add system message if it's not already in the messages
     if not any(isinstance(msg, SystemMessage) for msg in messages):
         messages = [SystemMessage(content=SYSTEM_PROMPT)] + messages
-    return {"messages": [llm_with_tools.invoke(messages)]}
+    
+    # Get response from LLM with full conversation history
+    response = llm_with_tools.invoke(messages)
+    
+    return {"messages": [response]}
 
 # Node Configuration
 tools_node = ToolNode(tools=tools)
@@ -139,9 +145,18 @@ if prompt := st.chat_input():
     st.session_state.messages.append({"role": "user", "content": prompt})
     st.chat_message("user").write(prompt)
 
+    # Convert chat history to LangChain message format
+    from langchain_core.messages import HumanMessage, AIMessage
+    history = []
+    for msg in st.session_state.messages:
+        if msg["role"] == "user":
+            history.append(HumanMessage(content=msg["content"]))
+        elif msg["role"] == "assistant":
+            history.append(AIMessage(content=msg["content"]))
+
     # Get AI response with a loading spinner
     with st.spinner("Thinking..."):
-        response = graph.invoke({"messages": [("user", prompt)]})
+        response = graph.invoke({"messages": history})
         msg = response["messages"][-1].content
 
     # Add AI response to chat
