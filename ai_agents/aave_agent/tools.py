@@ -61,7 +61,6 @@ with open('./aave_lending_pool_abi_testnet.json', 'r') as abi_file:
 
 # Loading the environmental variables which we don't want to be exposed to the general public
 load_dotenv()
-#private_key = os.getenv("PRIVATE_KEY")
 
 @tool
 def lend_crypto(amount: float, asset_address: str) -> Union[str, None]:
