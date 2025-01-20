@@ -23,7 +23,7 @@ from langchain_groq import ChatGroq
 from langchain_core.messages import SystemMessage, BaseMessage
 
 # Tools
-from tools import get_token_balance, lend_crypto, borrow_crypto
+from tools import get_token_balance, lend_crypto, borrow_crypto, set_private_key
 from web3 import Web3
 
 # User Interface
@@ -52,6 +52,9 @@ if not groq_api_key:
 if not private_key:
     st.warning(body="Private key is not set. Please set your wallet private key.")
     st.stop()
+
+# Set the private key in tools.py
+set_private_key(private_key)
 
 # Create account from private key
 account = web3.eth.account.from_key(private_key)

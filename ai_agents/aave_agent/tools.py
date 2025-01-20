@@ -30,6 +30,21 @@ logging.basicConfig(
     ]
 )
 
+# Global variable for private key
+_private_key = None
+
+def set_private_key(key: str):
+    """
+    Set the private key for use in transactions.
+    This should be called from main.py when the private key is received from the user.
+    
+    Args:
+        key (str): The private key to use for transactions
+    """
+    global _private_key
+    _private_key = key
+    logging.info("Private key has been set")
+
 """
 Initial Setup -> GLOBAL VARIABLES
 """
@@ -46,7 +61,7 @@ with open('./aave_lending_pool_abi_testnet.json', 'r') as abi_file:
 
 # Loading the environmental variables which we don't want to be exposed to the general public
 load_dotenv()
-private_key = os.getenv("PRIVATE_KEY")
+#private_key = os.getenv("PRIVATE_KEY")
 
 @tool
 def lend_crypto(amount: float, asset_address: str) -> Union[str, None]:
@@ -118,6 +133,11 @@ def lend_crypto(amount: float, asset_address: str) -> Union[str, None]:
         logging.warning("Unable to connect to Ethereum")
         return None
 
+    # Validate private key is set
+    if _private_key is None:
+        logging.error("Private key not set. Please set private key before attempting transactions.")
+        return None
+
     try:
         # Log connection details for debugging purposes
         logging.info("Connected to Ethereum")
@@ -159,9 +179,7 @@ def lend_crypto(amount: float, asset_address: str) -> Union[str, None]:
         logging.info(f"Token decimals: {token_decimals}")
         
         # Setup account and get current blockchain state
-        # account: Our Ethereum account created from private key
-        # nonce: Current transaction count (used to prevent double-spending)
-        account = web3.eth.account.from_key(private_key)
+        account = web3.eth.account.from_key(_private_key)
         nonce = web3.eth.get_transaction_count(account.address)
         logging.info(f"Account address: {account.address}")
         logging.info(f"Current nonce: {nonce}")
@@ -377,6 +395,11 @@ def borrow_crypto(amount: float, asset_address: str, interest_rate_mode: int = 2
         logging.error("Unable to connect to Ethereum")
         return None
 
+    # Validate private key is set
+    if _private_key is None:
+        logging.error("Private key not set. Please set private key before attempting transactions.")
+        return None
+
     try:
         # Log connection details for debugging purposes
         logging.info("Connected to Ethereum")
@@ -398,7 +421,7 @@ def borrow_crypto(amount: float, asset_address: str, interest_rate_mode: int = 2
         logging.info("Contracts initialized successfully")
         
         # Setup account
-        account = web3.eth.account.from_key(private_key)
+        account = web3.eth.account.from_key(_private_key)
         
         # Check user's borrowing capacity
         account_data = get_user_account_data(account.address)
@@ -518,7 +541,10 @@ def get_token_balance(token_address: str, user_address: str = None) -> Union[flo
         if not user_address:
             logging.info("No user_address provided, using connected wallet")
             try:
-                account = web3.eth.account.from_key(private_key)
+                if _private_key is None:
+                    logging.error("Private key not set. Please set private key before checking balance.")
+                    return None
+                account = web3.eth.account.from_key(_private_key)
                 user_address = account.address
                 logging.info(f"Generated address from private key: {user_address}")
             except Exception as e:
@@ -662,7 +688,10 @@ def main():
                     print("Invalid amount!")
             
             case "3":
-                account = web3.eth.account.from_key(private_key)
+                if _private_key is None:
+                    print("\nPrivate key not set. Please set private key before checking account data.")
+                    continue
+                account = web3.eth.account.from_key(_private_key)
                 account_data = get_user_account_data(account.address)
                 
                 if account_data:
