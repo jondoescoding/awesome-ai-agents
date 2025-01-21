@@ -56,7 +56,7 @@ aave_lending_pool_address = "0x6Ae43d3271ff6888e7Fc43Fd7321a503ff738951" # aave'
 web3 = Web3(Web3.HTTPProvider(rpc_url))
 
 # Load AAVE Lending Pool ABI - the ABI allows us to know what functions are available
-with open('./aave_lending_pool_abi_testnet.json', 'r') as abi_file:
+with open('aave_lending_pool_abi_testnet.json', 'r') as abi_file:
     aave_lending_pool_abi = json.load(abi_file)
 
 # Loading the environmental variables which we don't want to be exposed to the general public
