@@ -1,3 +1,4 @@
+from phi.agent import Agent
 from tools.revenue_tools import (
     get_fee_distributions,
     get_crvusd_weekly_fees,
@@ -7,12 +8,14 @@ from tools.revenue_tools import (
     get_collected_fees,
     get_staged_fees
 )
-from llama_index.core.agent.workflow import AgentWorkflow
 from core.config import llm
-import asyncio
 
-workflow = AgentWorkflow.from_tools_or_functions(
-    [
+# Create revenue agent with all tools
+revenue_agent = Agent(
+    name="Curve Revenue Agent",
+    role="Retrieve and analyze information about Curve protocol's revenue and fees",
+    model=llm,
+    tools=[
         get_fee_distributions,
         get_crvusd_weekly_fees,
         get_pools_weekly_fees,
@@ -21,14 +24,13 @@ workflow = AgentWorkflow.from_tools_or_functions(
         get_collected_fees,
         get_staged_fees
     ],
-    llm=llm,
-    system_prompt="You are a helpful assistant that can retrieve information about Curve protocol's revenue and fees.",
+    instructions=[
+        "You are a specialized agent for retrieving and analyzing Curve protocol's revenue and fee data",
+        "Use the appropriate tool based on the specific revenue information requested",
+        "For fee distributions, use pagination parameters when needed",
+        "When fetching time-based data, convert dates to timestamps if provided",
+        "Always provide clear explanations of the fee data retrieved"
+    ],
+    show_tool_calls=True,
+    markdown=True
 )
-
-async def main():
-    # Example query to get fee distributions
-    response = await workflow.run(user_msg="Show me crvusd weekly fees")
-    print(str(response))
-
-if __name__ == "__main__":
-    asyncio.run(main())
