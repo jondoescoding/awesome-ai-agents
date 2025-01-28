@@ -32,24 +32,24 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Initialize session state for API key if not present
-if "openai_api_key" not in st.session_state:
-    st.session_state.openai_api_key = ""
+if "groq_api_key" not in st.session_state:
+    st.session_state.groq_api_key = ""
 
 # Sidebar
 with st.sidebar:
     st.title("🔑 API Configuration")
     api_key = st.text_input(
-        "Enter your OpenAI API key",
+        "Enter your Groq API key",
         type="password",
-        value=st.session_state.openai_api_key,
-        help="Get your API key from https://platform.openai.com/account/api-keys"
+        value=st.session_state.groq_api_key,
+        help="Get your API key from: https://console.groq.com/keys"
     )
     
     # Update session state when API key changes
-    if api_key != st.session_state.openai_api_key:
-        st.session_state.openai_api_key = api_key
-        # Set environment variable for OpenAI
-        os.environ["OPENAI_API_KEY"] = api_key
+    if api_key != st.session_state.groq_api_key:
+        st.session_state.groq_api_key = api_key
+        # Set environment variable for Groq
+        os.environ["GROQ_API_KEY"] = api_key
     
     st.divider()
     st.title("🦙 About")
@@ -92,8 +92,8 @@ with st.sidebar:
         st.markdown("""
         Try asking:
         - What is the last 7 days of transactions for Ethereum?
-        - Show me the current lending chains
-        - How many users are on each chain?
+        - Get all supported chains available on Curve.fi
+        - How many users are on Ethereum?
         """)
     else:  # Multi-Agent mode
         st.markdown("""
@@ -104,7 +104,7 @@ with st.sidebar:
         """)
 
 # Initialize individual agents only if API key is provided
-if st.session_state.openai_api_key:
+if st.session_state.groq_api_key:
     revenue_assistant = revenue_agent
     chain_assistant = chain_agent
 
@@ -136,10 +136,10 @@ input_container = st.container()
 
 with input_container:
     # Only enable chat input if API key is provided
-    if st.session_state.openai_api_key:
+    if st.session_state.groq_api_key:
         prompt = st.chat_input("What would you like to know?")
     else:
-        st.error("Please enter your OpenAI API key in the sidebar to start chatting.")
+        st.error("Please enter your Groq API key in the sidebar to start chatting.")
         prompt = None
 
 with chat_container:
@@ -157,8 +157,8 @@ if prompt:
 
         # Get agent response
         with st.chat_message("assistant"):
-            if not st.session_state.openai_api_key:
-                st.error("Please enter your OpenAI API key in the sidebar to get a response.")
+            if not st.session_state.groq_api_key:
+                st.error("Please enter your Groq API key in the sidebar to get a response.")
             else:
                 message_placeholder = st.empty()
                 full_response = ""

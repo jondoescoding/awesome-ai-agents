@@ -1,14 +1,14 @@
 import requests
-from phi.model.openai import OpenAIChat
+from phi.model.groq import Groq
 import os
 from dotenv import load_dotenv
 
 load_dotenv()
 
 # Initialize LLM configuration with required settings
-llm = OpenAIChat(
-    id="gpt-4o-mini",
-    api_key=os.getenv("OPENAI_API_KEY")
+llm = Groq(
+    id="llama-3.3-70b-versatile",
+    api_key=os.getenv("GROQ_API_KEY")
 )
 
 class APIClient:
