@@ -4,8 +4,8 @@ from agents.revenue_agent import revenue_agent
 from agents.chain_agent import chain_agent
 
 # Initialize individual agents
-revenue_assistant = Agent(agent=revenue_agent, name="Revenue Assistant")
-chain_assistant = Agent(agent=chain_agent, name="Chain Assistant")
+revenue_assistant = revenue_agent
+chain_assistant = chain_agent
 
 # Create team as a single agent with multiple sub-agents
 curve_team = Agent(

@@ -5,7 +5,7 @@ from core.config import APIClient
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def get_fee_distributions(page: int = 1, per_page: int = 10) -> Dict[str, Any]:
+def get_fee_distributions(page: int = 1, per_page: int = 10) -> str:
     """
     Get historical fee distributions with pagination
     
@@ -14,10 +14,7 @@ def get_fee_distributions(page: int = 1, per_page: int = 10) -> Dict[str, Any]:
         per_page (int): Number of items per page (default: 10)
         
     Returns:
-        Dict containing fee distribution data including:
-        - distributions: List of fee distribution events
-        - page: Current page number
-        - count: Total number of distributions
+        Formatted string containing fee distribution data
     """
     logger.info(f"Fetching fee distributions for page {page} with {per_page} items per page")
     
@@ -27,9 +24,22 @@ def get_fee_distributions(page: int = 1, per_page: int = 10) -> Dict[str, Any]:
     }
     
     with APIClient() as client:
-        return client.get("/v1/dao/fees/distributions", params=params)
+        response = client.get("/v1/dao/fees/distributions", params=params)
+        
+        # Format the response as a string
+        result = []
+        result.append(f"Fee Distributions (Page {response['page']}, Total: {response['count']})")
+        result.append("\n")
+        
+        for dist in response['distributions']:
+            result.append("---")
+            for key, value in dist.items():
+                result.append(f"{key}: {value}")
+            result.append("\n")
+            
+        return "\n".join(result)
 
-def get_crvusd_weekly_fees(start: Optional[int] = None, end: Optional[int] = None) -> Dict[str, Any]:
+def get_crvusd_weekly_fees(start: Optional[int] = None, end: Optional[int] = None) -> str:
     """
     Get weekly fees (including currently pending) from crvUSD markets
     
@@ -38,8 +48,7 @@ def get_crvusd_weekly_fees(start: Optional[int] = None, end: Optional[int] = Non
         end (int, optional): End timestamp
         
     Returns:
-        Dict containing weekly crvUSD fees data including:
-        - fees: List of fee distribution data per controller/collateral
+        Formatted string containing weekly crvUSD fees data
     """
     logger.info(f"Fetching crvUSD weekly fees from {start} to {end}")
     
@@ -50,9 +59,35 @@ def get_crvusd_weekly_fees(start: Optional[int] = None, end: Optional[int] = Non
         params["end"] = end
         
     with APIClient() as client:
-        return client.get("/v1/dao/fees/crvusd/weekly", params=params)
+        response = client.get("/v1/dao/fees/crvusd/weekly", params=params)
+        
+        # Format the response as a string
+        result = []
+        result.append("Weekly crvUSD Fees")
+        result.append("\n")
+        
+        # Group fees by timestamp for better readability
+        fees_by_date = {}
+        for fee in response['fees']:
+            timestamp = fee['timestamp']
+            if timestamp not in fees_by_date:
+                fees_by_date[timestamp] = []
+            fees_by_date[timestamp].append(fee)
+        
+        # Format each date's fees
+        for timestamp, fees in sorted(fees_by_date.items(), reverse=True):
+            result.append(f"\n## {timestamp}")
+            total_fees = sum(fee['fees_usd'] for fee in fees)
+            result.append(f"Total Fees: ${total_fees:,.2f}")
+            
+            for fee in fees:
+                result.append(f"\n- {fee['collateral']}")
+                result.append(f"  Fees: ${fee['fees_usd']:,.2f}")
+                result.append(f"  Controller: {fee['controller']}")
+            
+        return "\n".join(result)
 
-def get_pools_weekly_fees(start: Optional[int] = None, end: Optional[int] = None) -> Dict[str, Any]:
+def get_pools_weekly_fees(start: Optional[int] = None, end: Optional[int] = None) -> str:
     """
     Get weekly fees (including currently pending) from pools across all chains
     
@@ -61,8 +96,7 @@ def get_pools_weekly_fees(start: Optional[int] = None, end: Optional[int] = None
         end (int, optional): End timestamp
         
     Returns:
-        Dict containing weekly pool fees data including:
-        - fees: List of fee distribution data per chain
+        Formatted string containing weekly pool fees data
     """
     logger.info(f"Fetching pools weekly fees from {start} to {end}")
     
@@ -73,9 +107,44 @@ def get_pools_weekly_fees(start: Optional[int] = None, end: Optional[int] = None
         params["end"] = end
         
     with APIClient() as client:
-        return client.get("/v1/dao/fees/pools/weekly", params=params)
+        response = client.get("/v1/dao/fees/pools/weekly", params=params)
+        
+        # Format the response as a string
+        result = []
+        result.append("Weekly Pool Fees Across Chains")
+        result.append("\n")
+        
+        # Group fees by chain and timestamp
+        fees_by_chain = {}
+        for fee in response['fees']:
+            chain = fee.get('chain', 'unknown')
+            if chain not in fees_by_chain:
+                fees_by_chain[chain] = {}
+            
+            timestamp = fee.get('timestamp')
+            if timestamp not in fees_by_chain[chain]:
+                fees_by_chain[chain][timestamp] = []
+            fees_by_chain[chain][timestamp].append(fee)
+        
+        # Format each chain's fees
+        for chain in sorted(fees_by_chain.keys()):
+            result.append(f"\n# {chain.upper()}")
+            
+            for timestamp in sorted(fees_by_chain[chain].keys(), reverse=True):
+                fees = fees_by_chain[chain][timestamp]
+                result.append(f"\n## {timestamp}")
+                total_chain_fees = sum(fee.get('fees_usd', 0) for fee in fees)
+                result.append(f"Total Chain Fees: ${total_chain_fees:,.2f}")
+                
+                for fee in fees:
+                    result.append(f"\n- Pool: {fee.get('pool_name', 'Unknown Pool')}")
+                    result.append(f"  Fees: ${fee.get('fees_usd', 0):,.2f}")
+                    if 'volume_usd' in fee:
+                        result.append(f"  Volume: ${fee.get('volume_usd', 0):,.2f}")
+            
+        return "\n".join(result)
 
-def get_pending_pool_fees(chain: str) -> Dict[str, Any]:
+def get_pending_pool_fees(chain: str) -> str:
     """
     Get pending admin fees on all pools for a specific chain
     
@@ -83,16 +152,42 @@ def get_pending_pool_fees(chain: str) -> Dict[str, Any]:
         chain (str): Chain identifier (e.g., "ethereum", "polygon")
         
     Returns:
-        Dict containing pending pool fees data including:
-        - chain: Chain identifier
-        - data: List of pools with their pending fees
+        Formatted string containing pending pool fees data
     """
     logger.info(f"Fetching pending pool fees for chain: {chain}")
     
     with APIClient() as client:
-        return client.get(f"/v1/dao/fees/{chain}/pending")
+        response = client.get(f"/v1/dao/fees/{chain}/pending")
+        
+        # Format the response as a string
+        result = []
+        result.append(f"Pending Pool Fees for {chain.upper()}")
+        result.append("\n")
+        
+        if 'data' in response:
+            total_pending_usd = sum(pool.get('pending_fees_usd', 0) for pool in response['data'])
+            result.append(f"Total Pending Fees: ${total_pending_usd:,.2f}\n")
+            
+            # Sort pools by pending fees
+            sorted_pools = sorted(
+                response['data'], 
+                key=lambda x: x.get('pending_fees_usd', 0), 
+                reverse=True
+            )
+            
+            for pool in sorted_pools:
+                result.append(f"\n## {pool.get('name', 'Unknown Pool')}")
+                result.append(f"Pending Fees: ${pool.get('pending_fees_usd', 0):,.2f}")
+                if 'tokens' in pool:
+                    result.append("\nToken Breakdown:")
+                    for token in pool['tokens']:
+                        result.append(f"- {token.get('symbol', 'Unknown')}: {token.get('amount', 0)}")
+                        if 'usd_value' in token:
+                            result.append(f"  (${token.get('usd_value', 0):,.2f})")
+        
+        return "\n".join(result)
 
-def get_cow_settlements(timestamp: Optional[int] = None) -> Dict[str, Any]:
+def get_cow_settlements(timestamp: Optional[int] = None) -> str:
     """
     Get information on the latest settlements of fees via CoWSwap
     
@@ -100,7 +195,7 @@ def get_cow_settlements(timestamp: Optional[int] = None) -> Dict[str, Any]:
         timestamp (int, optional): Unix timestamp to filter settlements
         
     Returns:
-        Dict containing CoWSwap settlement data
+        Formatted string containing CoWSwap settlement data
     """
     logger.info(f"Fetching CoWSwap settlements before timestamp: {timestamp}")
     
@@ -109,30 +204,100 @@ def get_cow_settlements(timestamp: Optional[int] = None) -> Dict[str, Any]:
         params["timestamp"] = timestamp
         
     with APIClient() as client:
-        return client.get("/v1/dao/fees/settlements", params=params)
+        response = client.get("/v1/dao/fees/settlements", params=params)
+        
+        # Format the response as a string
+        result = []
+        result.append("CoWSwap Fee Settlements")
+        result.append("\n")
+        
+        if 'settlements' in response:
+            for settlement in response['settlements']:
+                result.append("\n---")
+                result.append(f"Timestamp: {settlement.get('timestamp', 'Unknown')}")
+                result.append(f"Transaction: {settlement.get('tx_hash', 'Unknown')}")
+                
+                if 'tokens' in settlement:
+                    result.append("\nTokens Settled:")
+                    for token in settlement['tokens']:
+                        result.append(f"- {token.get('symbol', 'Unknown')}")
+                        result.append(f"  Amount: {token.get('amount', 0)}")
+                        if 'usd_value' in token:
+                            result.append(f"  Value: ${token.get('usd_value', 0):,.2f}")
+                
+                if 'total_usd' in settlement:
+                    result.append(f"\nTotal Value: ${settlement.get('total_usd', 0):,.2f}")
+        
+        return "\n".join(result)
 
-def get_collected_fees() -> Dict[str, Any]:
+def get_collected_fees() -> str:
     """
     Get the list of tokens collected in the Fee Collector
     
     Returns:
-        Dict containing collected fees data including:
-        - data: List of tokens with their amounts and USD values
+        Formatted string containing collected fees data
     """
     logger.info("Fetching collected fees from Fee Collector")
     
     with APIClient() as client:
-        return client.get("/v1/dao/fees/collected")
+        response = client.get("/v1/dao/fees/collected")
+        
+        # Format the response as a string
+        result = []
+        result.append("Collected Fees in Fee Collector")
+        result.append("\n")
+        
+        if 'data' in response:
+            total_usd = sum(token.get('usd_value', 0) for token in response['data'])
+            result.append(f"Total Value: ${total_usd:,.2f}\n")
+            
+            # Sort tokens by USD value
+            sorted_tokens = sorted(
+                response['data'],
+                key=lambda x: x.get('usd_value', 0),
+                reverse=True
+            )
+            
+            for token in sorted_tokens:
+                result.append(f"\n## {token.get('symbol', 'Unknown Token')}")
+                result.append(f"Amount: {token.get('amount', 0):,.6f}")
+                if 'usd_value' in token:
+                    result.append(f"Value: ${token.get('usd_value', 0):,.2f}")
+        
+        return "\n".join(result)
 
-def get_staged_fees() -> Dict[str, Any]:
+def get_staged_fees() -> str:
     """
     Get the list of tokens collected in the Fee Burner
     
     Returns:
-        Dict containing staged fees data including:
-        - data: List of tokens with their amounts and USD values
+        Formatted string containing staged fees data
     """
     logger.info("Fetching staged fees from Fee Burner")
     
     with APIClient() as client:
-        return client.get("/v1/dao/fees/staged")
+        response = client.get("/v1/dao/fees/staged")
+        
+        # Format the response as a string
+        result = []
+        result.append("Staged Fees in Fee Burner")
+        result.append("\n")
+        
+        if 'data' in response:
+            total_usd = sum(token.get('usd_value', 0) for token in response['data'])
+            result.append(f"Total Value: ${total_usd:,.2f}\n")
+            
+            # Sort tokens by USD value
+            sorted_tokens = sorted(
+                response['data'],
+                key=lambda x: x.get('usd_value', 0),
+                reverse=True
+            )
+            
+            for token in sorted_tokens:
+                result.append(f"\n## {token.get('symbol', 'Unknown Token')}")
+                result.append(f"Amount: {token.get('amount', 0):,.6f}")
+                if 'usd_value' in token:
+                    result.append(f"Value: ${token.get('usd_value', 0):,.2f}")
+        
+        return "\n".join(result)
