@@ -1,14 +1,11 @@
 import logging
-from typing import Optional, Dict, Any, List
-from datetime import datetime
+from typing import Optional, Dict, Any
 from core.config import APIClient
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-BASE_URL = "https://api.curve.fi/v1/dao/fees"
-
-async def get_fee_distributions(page: int = 1, per_page: int = 10) -> Dict[str, Any]:
+def get_fee_distributions(page: int = 1, per_page: int = 10) -> Dict[str, Any]:
     """
     Get historical fee distributions with pagination
     
@@ -29,10 +26,10 @@ async def get_fee_distributions(page: int = 1, per_page: int = 10) -> Dict[str, 
         "per_page": per_page
     }
     
-    async with APIClient() as client:
-        return await client.get("/distributions", params=params)
+    with APIClient() as client:
+        return client.get("/v1/dao/fees/distributions", params=params)
 
-async def get_crvusd_weekly_fees(start: Optional[int] = None, end: Optional[int] = None) -> Dict[str, Any]:
+def get_crvusd_weekly_fees(start: Optional[int] = None, end: Optional[int] = None) -> Dict[str, Any]:
     """
     Get weekly fees (including currently pending) from crvUSD markets
     
@@ -52,10 +49,10 @@ async def get_crvusd_weekly_fees(start: Optional[int] = None, end: Optional[int]
     if end is not None:
         params["end"] = end
         
-    async with APIClient() as client:
-        return await client.get("/v1/dao/fees/crvusd/weekly", params=params)
+    with APIClient() as client:
+        return client.get("/v1/dao/fees/crvusd/weekly", params=params)
 
-async def get_pools_weekly_fees(start: Optional[int] = None, end: Optional[int] = None) -> Dict[str, Any]:
+def get_pools_weekly_fees(start: Optional[int] = None, end: Optional[int] = None) -> Dict[str, Any]:
     """
     Get weekly fees (including currently pending) from pools across all chains
     
@@ -75,10 +72,10 @@ async def get_pools_weekly_fees(start: Optional[int] = None, end: Optional[int] 
     if end is not None:
         params["end"] = end
         
-    async with APIClient() as client:
-        return await client.get("/v1/dao/fees/pools/weekly", params=params)
+    with APIClient() as client:
+        return client.get("/v1/dao/fees/pools/weekly", params=params)
 
-async def get_pending_pool_fees(chain: str) -> Dict[str, Any]:
+def get_pending_pool_fees(chain: str) -> Dict[str, Any]:
     """
     Get pending admin fees on all pools for a specific chain
     
@@ -92,10 +89,10 @@ async def get_pending_pool_fees(chain: str) -> Dict[str, Any]:
     """
     logger.info(f"Fetching pending pool fees for chain: {chain}")
     
-    async with APIClient() as client:
-        return await client.get(f"/v1/dao/fees/{chain}/pending")
+    with APIClient() as client:
+        return client.get(f"/v1/dao/fees/{chain}/pending")
 
-async def get_cow_settlements(timestamp: Optional[int] = None) -> Dict[str, Any]:
+def get_cow_settlements(timestamp: Optional[int] = None) -> Dict[str, Any]:
     """
     Get information on the latest settlements of fees via CoWSwap
     
@@ -111,10 +108,10 @@ async def get_cow_settlements(timestamp: Optional[int] = None) -> Dict[str, Any]
     if timestamp is not None:
         params["timestamp"] = timestamp
         
-    async with APIClient() as client:
-        return await client.get("/v1/dao/fees/settlements", params=params)
+    with APIClient() as client:
+        return client.get("/v1/dao/fees/settlements", params=params)
 
-async def get_collected_fees() -> Dict[str, Any]:
+def get_collected_fees() -> Dict[str, Any]:
     """
     Get the list of tokens collected in the Fee Collector
     
@@ -124,10 +121,10 @@ async def get_collected_fees() -> Dict[str, Any]:
     """
     logger.info("Fetching collected fees from Fee Collector")
     
-    async with APIClient() as client:
-        return await client.get("/v1/dao/fees/collected")
+    with APIClient() as client:
+        return client.get("/v1/dao/fees/collected")
 
-async def get_staged_fees() -> Dict[str, Any]:
+def get_staged_fees() -> Dict[str, Any]:
     """
     Get the list of tokens collected in the Fee Burner
     
@@ -137,5 +134,5 @@ async def get_staged_fees() -> Dict[str, Any]:
     """
     logger.info("Fetching staged fees from Fee Burner")
     
-    async with APIClient() as client:
-        return await client.get("/v1/dao/fees/staged")
+    with APIClient() as client:
+        return client.get("/v1/dao/fees/staged")

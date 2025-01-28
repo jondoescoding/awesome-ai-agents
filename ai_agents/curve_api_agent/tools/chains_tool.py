@@ -7,12 +7,11 @@ What: This script allows the LLM to access the v1 chains from the Price Feeds Ba
 """
 from core.config import APIClient
 import logging
-import asyncio
-import aiohttp
 from typing import Optional
+import requests
 
 # FUNCTIONS
-async def get_all_supported_chains() -> dict:
+def get_all_supported_chains() -> dict:
     """Gets ALL supported chains available on Curve.fi
     
     Returns:
@@ -23,18 +22,18 @@ async def get_all_supported_chains() -> dict:
     """
     try:
         logging.info("Fetching supported chains from Curve API...")
-        async with APIClient() as client:
-            result = await client.get(endpoint="/v1/chains")
+        with APIClient() as client:
+            result = client.get(endpoint="/v1/chains")
             logging.debug(f"Received {len(result)} chains")
             return result
-    except aiohttp.ClientError as e:
+    except requests.RequestException as e:
         print(f"API Error: {str(e)}")
         return {"error": str(e)}
     except Exception as e:
         print(f"Error: {str(e)}")
         return {"error": "Request failed"}
     
-async def get_chain_pools(chain: str, page: int = 1, per_page: int = 10) -> dict:
+def get_chain_pools(chain: str, page: int = 1, per_page: int = 10) -> dict:
     """Gets all supported contracts/pools for a specific chain on Curve.fi
     
     Args:
@@ -57,21 +56,21 @@ async def get_chain_pools(chain: str, page: int = 1, per_page: int = 10) -> dict
         }
             
         logging.info(f"Fetching pools for chain {chain} from Curve API...")
-        async with APIClient() as client:
-            result = await client.get(
+        with APIClient() as client:
+            result = client.get(
                 endpoint=f"/v1/chains/{chain}",
                 params=params
             )
             logging.debug(f"Received pool data for chain {chain}")
             return result
-    except aiohttp.ClientError as e:
+    except requests.RequestException as e:
         print(f"API Error: {str(e)}")
         return {"error": str(e)}
     except Exception as e:
         print(f"Error: {str(e)}")
         return {"error": "Request failed"}
 
-async def get_chain_transactions(start: Optional[int] = None, end: Optional[int] = None) -> dict:
+def get_chain_transactions(start: Optional[int] = None, end: Optional[int] = None) -> dict:
     """Get daily transactions count for each supported chain
     
     Args:
@@ -94,21 +93,21 @@ async def get_chain_transactions(start: Optional[int] = None, end: Optional[int]
             params['end'] = end
             
         logging.info("Fetching chain transaction activity...")
-        async with APIClient() as client:
-            result = await client.get(
+        with APIClient() as client:
+            result = client.get(
                 endpoint="/v1/chains/activity/transactions",
                 params=params
             )
             logging.debug("Received chain transaction activity data")
             return result
-    except aiohttp.ClientError as e:
+    except requests.RequestException as e:
         print(f"API Error: {str(e)}")
         return {"error": str(e)}
     except Exception as e:
         print(f"Error: {str(e)}")
         return {"error": "Request failed"}
 
-async def get_chain_users(start: Optional[int] = None, end: Optional[int] = None) -> dict:
+def get_chain_users(start: Optional[int] = None, end: Optional[int] = None) -> dict:
     """Get daily unique user count for each supported chain
     
     Args:
@@ -131,21 +130,21 @@ async def get_chain_users(start: Optional[int] = None, end: Optional[int] = None
             params['end'] = end
             
         logging.info("Fetching chain user activity...")
-        async with APIClient() as client:
-            result = await client.get(
+        with APIClient() as client:
+            result = client.get(
                 endpoint="/v1/chains/activity/users",
                 params=params
             )
             logging.debug("Received chain user activity data")
             return result
-    except aiohttp.ClientError as e:
+    except requests.RequestException as e:
         print(f"API Error: {str(e)}")
         return {"error": str(e)}
     except Exception as e:
         print(f"Error: {str(e)}")
         return {"error": "Request failed"}
 
-async def get_lending_chains() -> dict:
+def get_lending_chains() -> dict:
     """Get all supported chains for lending stats
     
     Returns:
@@ -157,11 +156,11 @@ async def get_lending_chains() -> dict:
     """
     try:
         logging.info("Fetching supported lending chains...")
-        async with APIClient() as client:
-            result = await client.get(endpoint="/v1/lending/chains/")
+        with APIClient() as client:
+            result = client.get(endpoint="/v1/lending/chains/")
             logging.debug("Received lending chains data")
             return result
-    except aiohttp.ClientError as e:
+    except requests.RequestException as e:
         print(f"API Error: {str(e)}")
         return {"error": str(e)}
     except Exception as e:
