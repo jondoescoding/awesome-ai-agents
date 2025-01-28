@@ -1,4 +1,4 @@
-import streamlit as st
+import gradio as gr
 from langchain_google_genai import ChatGoogleGenerativeAI
 from browser_use import Agent, SystemPrompt
 from pydantic import SecretStr
@@ -10,59 +10,53 @@ import asyncio
 load_dotenv()
 api_key = os.getenv("GEMINI_API_KEY")
 
-# Initialize Streamlit page config
-st.set_page_config(page_title="Browser Use Chat", page_icon="🌐", layout="wide")
-st.title("Browser Use Chat")
-
-# Initialize session state
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-if "browser_mode" not in st.session_state:
-    st.session_state.browser_mode = False
-
 # Initialize the model
-@st.cache_resource
 def get_llm():
     return ChatGoogleGenerativeAI(model='gemini-2.0-flash-exp', api_key=SecretStr(api_key))
 
 llm = get_llm()
 
-# Toggle for browser automation mode
-st.session_state.browser_mode = st.toggle("Enable Browser Automation", value=st.session_state.browser_mode)
+# Initialize browser mode state
+browser_mode = False
 
-# Display chat messages
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+def toggle_browser_mode():
+    global browser_mode
+    browser_mode = not browser_mode
+    return f"Browser mode {'enabled' if browser_mode else 'disabled'}"
 
-# Chat input
-if prompt := st.chat_input("What would you like to do?"):
-    # Add user message to chat history
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user"):
-        st.markdown(prompt)
+async def chat_response(message, history):
+    if browser_mode:
+        # Run browser automation
+        agent = Agent(task=message, llm=llm)
+        result = await agent.run()
+        yield result
+    else:
+        # Regular chat response
+        response = ""
+        for chunk in llm.stream(message):
+            if chunk.content:
+                response += chunk.content
+                yield response
 
-    # Generate response
-    with st.chat_message("assistant"):
-        message_placeholder = st.empty()
-        if st.session_state.browser_mode:
-            # Run browser automation
-            async def run_agent():
-                agent = Agent(task=prompt, llm=llm)
-                result = await agent.run()
-                return result
+# Create the Gradio interface
+with gr.Blocks() as demo:
+    gr.Markdown("# Browser Use Chat")
+    
+    with gr.Row():
+        browser_toggle = gr.Button("Toggle Browser Mode")
+        status = gr.Textbox(label="Status", value="Browser mode disabled")
+    
+    chatbot = gr.ChatInterface(
+        fn=chat_response,
+        title="Chat with Browser Agent",
+        description="Chat with an AI that can browse the web for you.",
+        examples=["What's the weather like?", "Search for recent news about AI"],
+        retry_btn=None,
+        undo_btn=None,
+        clear_btn="Clear",
+    )
+    
+    browser_toggle.click(toggle_browser_mode, outputs=status)
 
-            with st.spinner("Running browser automation..."):
-                result = asyncio.run(run_agent())
-                message_placeholder.markdown(result)
-                st.session_state.messages.append({"role": "assistant", "content": result})
-        else:
-            # Regular chat response
-            with st.spinner("Working..."):
-                full_response = ""
-                for chunk in llm.stream(prompt):
-                    if chunk.content:
-                        full_response += chunk.content
-                        message_placeholder.markdown(full_response + "▌")
-                message_placeholder.markdown(full_response)
-                st.session_state.messages.append({"role": "assistant", "content": full_response})
+if __name__ == "__main__":
+    demo.launch()
