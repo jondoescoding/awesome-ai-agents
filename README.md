@@ -9,7 +9,7 @@
 
 # 🌟 Awesome AI Agents & Workflows
 
-This repository features AI agents and workflows that use models from Groq and OpenRouter.
+This repository features AI agents and workflows that use large language models (LLMs) to automate everyday busy people tasks.
 
 ## 🛠 Agents vs Workflows
 
