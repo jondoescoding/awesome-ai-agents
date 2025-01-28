@@ -5,7 +5,7 @@ Main script
 What: This script allows the LLM to access the v1 chains from the Price Feeds Backend API from Curve.fi
 
 """
-from config import APIClient
+from tools.config import APIClient
 import logging
 import asyncio
 import aiohttp
