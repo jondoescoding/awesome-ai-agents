@@ -1,27 +1,28 @@
-import aiohttp
-from llama_index.llms.openai import OpenAI
+import requests
+from phi.model.openai import OpenAIChat
 import os
 from dotenv import load_dotenv
 
 load_dotenv()
 
-# Initialize LLM configuration
-llm = OpenAI(model="gpt-4o-mini", api_key=os.getenv("OPENAI_API_KEY"))
+# Initialize LLM configuration with required settings
+llm = OpenAIChat(
+    id="gpt-4o-mini",
+    api_key=os.getenv("OPENAI_API_KEY")
+)
 
 class APIClient:
     def __init__(self):
         self.base_url = "https://prices.curve.fi"
-        self._session = None
+        self.session = requests.Session()
         
-    async def __aenter__(self):
-        self._session = aiohttp.ClientSession()
+    def __enter__(self):
         return self
         
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        if self._session:
-            await self._session.close()
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.session.close()
             
-    async def get(self, endpoint: str, params: dict = None) -> dict:
+    def get(self, endpoint: str, params: dict = None) -> dict:
         """Make a GET request to the API
         
         Args:
@@ -31,8 +32,6 @@ class APIClient:
         Returns:
             dict: JSON response from the API
         """
-        if not self._session:
-            self._session = aiohttp.ClientSession()
-        async with self._session.get(f"{self.base_url}{endpoint}", params=params) as response:
-            response.raise_for_status()
-            return await response.json() 
+        response = self.session.get(f"{self.base_url}{endpoint}", params=params)
+        response.raise_for_status()
+        return response.json() 

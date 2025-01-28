@@ -1,7 +1,26 @@
 import streamlit as st
-from llama_index.core.agent.workflow import AgentWorkflow
-from agents.revenue_agent import workflow as revenue_workflow
-from agents.chain_agent import workflow as chain_workflow
+from phi.agent import Agent
+from agents.revenue_agent import revenue_agent
+from agents.chain_agent import chain_agent
+
+# Initialize individual agents
+revenue_assistant = Agent(agent=revenue_agent, name="Revenue Assistant")
+chain_assistant = Agent(agent=chain_agent, name="Chain Assistant")
+
+# Create team as a single agent with multiple sub-agents
+curve_team = Agent(
+    name="Curve Analysis Team",
+    team=[revenue_assistant, chain_assistant],
+    instructions=[
+        "First, use the revenue agent to analyze fee and revenue data.",
+        "Then, use the chain agent to analyze blockchain transactions and metrics.",
+        "Combine insights from both agents to provide comprehensive analysis.",
+        "Important: When analyzing fees, always correlate with chain activity.",
+        "Finally, provide a clear summary that connects revenue and chain insights."
+    ],
+    show_tool_calls=True,
+    markdown=True
+)
 
 # Page config
 st.set_page_config(
@@ -54,9 +73,33 @@ with st.sidebar:
     st.markdown("### 🤖 Select Agent")
     agent_type = st.radio(
         "Choose which agent to interact with:",
-        ["Revenue Agent", "Chain Agent"],
+        ["Revenue Agent", "Chain Agent", "Multi-Agent"],
         key="agent_selection"
     )
+    
+    # Move examples to sidebar
+    st.markdown("### 📝 Example Questions")
+    if st.session_state.agent_selection == "Revenue Agent":
+        st.markdown("""
+        Try asking:
+        - What are the current fee distributions?
+        - Show me the weekly CrvUSD fees
+        - What are the pending pool fees?
+        """)
+    elif st.session_state.agent_selection == "Chain Agent":
+        st.markdown("""
+        Try asking:
+        - What is the last 7 days of transactions for Ethereum?
+        - Show me the current lending chains
+        - How many users are on each chain?
+        """)
+    else:  # Multi-Agent mode
+        st.markdown("""
+        Try asking complex questions that combine both agents:
+        - Compare ETH chain fees to CrvUSD fees
+        - What's the relationship between user growth and revenue?
+        - Show me high-fee pools and their transaction volumes
+        """)
 
 # Initialize session state
 if "messages" not in st.session_state:
@@ -65,58 +108,45 @@ if "messages" not in st.session_state:
 # Main chat interface
 st.title("🦙 Curve Protocol Agent Chat")
 
-# Display chat messages
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+# Chat input at the bottom
+chat_container = st.container()
+input_container = st.container()
 
-# Chat input
-if prompt := st.chat_input("What would you like to know?"):
+with input_container:
+    prompt = st.chat_input("What would you like to know?")
+
+with chat_container:
+    # Display chat messages
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+
+if prompt:
     # Add user message to chat history
     st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user"):
-        st.markdown(prompt)
+    with chat_container:
+        with st.chat_message("user"):
+            st.markdown(prompt)
 
-    # Get agent response
-    with st.chat_message("assistant"):
-        message_placeholder = st.empty()
-        full_response = ""
-        
-        # Select the appropriate workflow based on user selection
-        selected_workflow = revenue_workflow if st.session_state.agent_selection == "Revenue Agent" else chain_workflow
-        
-        # Stream the agent's response
-        handler = selected_workflow.run(user_msg=prompt)
-        
-        with st.spinner("Thinking..."):
-            for event in handler.sync_events():
-                if hasattr(event, "delta"):
-                    full_response += str(event.delta)
-                    message_placeholder.markdown(full_response + "▌")
+        # Get agent response
+        with st.chat_message("assistant"):
+            message_placeholder = st.empty()
+            full_response = ""
+            
+            # Select the appropriate assistant based on user selection
+            if st.session_state.agent_selection == "Multi-Agent":
+                with st.spinner("Agents collaborating..."):
+                    response_stream = curve_team.run(prompt, stream=True)
+                    for response in response_stream:
+                        full_response += str(response.content)
+                        message_placeholder.markdown(full_response + "▌")
+            else:
+                selected_assistant = revenue_assistant if st.session_state.agent_selection == "Revenue Agent" else chain_assistant
+                with st.spinner("Thinking..."):
+                    response_stream = selected_assistant.run(prompt, stream=True)
+                    for response in response_stream:
+                        full_response += str(response.content)
+                        message_placeholder.markdown(full_response + "▌")
             
             message_placeholder.markdown(full_response)
-        
-        # Add assistant response to chat history
-        st.session_state.messages.append({"role": "assistant", "content": full_response})
-
-# Footer with agent context
-st.markdown("---")
-current_agent = "Revenue Agent" if st.session_state.agent_selection == "Revenue Agent" else "Chain Agent"
-st.markdown(f"Currently using: {current_agent} 🦙")
-
-# Add helpful examples based on selected agent
-with st.expander("📝 Example Questions"):
-    if st.session_state.agent_selection == "Revenue Agent":
-        st.markdown("""
-        Try asking:
-        - What are the current fee distributions?
-        - Show me the weekly CrvUSD fees
-        - What are the pending pool fees?
-        """)
-    else:
-        st.markdown("""
-        Try asking:
-        - What is the last 7 days of transactions for Ethereum?
-        - Show me the current lending chains
-        - How many users are on each chain?
-        """) 
+            st.session_state.messages.append({"role": "assistant", "content": full_response}) 
