@@ -167,32 +167,3 @@ async def get_lending_chains() -> dict:
     except Exception as e:
         print(f"Error: {str(e)}")
         return {"error": "Request failed"}
-
-async def main():
-    """Test the chain activity and lending chains endpoints"""
-    
-    # Test chain transaction activity
-    print("\nTesting chain transaction activity:")
-    # Get last 7 days of transactions
-    from time import time
-    end = int(time())  # current timestamp
-    start = end - (7 * 24 * 60 * 60)  # 7 days ago
-    transactions = await get_chain_transactions(start=start, end=end)
-    print(transactions)
-    
-    # Test chain user activity
-    print("\nTesting chain user activity:")
-    # Get last 7 days of user activity
-    users = await get_chain_users(start=start, end=end)
-    print(users)
-    
-    # Test supported lending chains
-    print("\nTesting supported lending chains:")
-    lending_chains = await get_lending_chains()
-    print(lending_chains)
-
-if __name__ == "__main__":
-    # Set up logging
-    logging.basicConfig(level=logging.INFO)
-    # Run the test
-    asyncio.run(main())
