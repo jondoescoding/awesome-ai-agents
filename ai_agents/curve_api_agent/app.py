@@ -1,33 +1,16 @@
 import streamlit as st
-from phi.agent import Agent
-from agents.revenue_agent import revenue_agent
-from agents.chain_agent import chain_agent
 
-# Initialize individual agents
-revenue_assistant = revenue_agent
-chain_assistant = chain_agent
-
-# Create team as a single agent with multiple sub-agents
-curve_team = Agent(
-    name="Curve Analysis Team",
-    team=[revenue_assistant, chain_assistant],
-    instructions=[
-        "First, use the revenue agent to analyze fee and revenue data.",
-        "Then, use the chain agent to analyze blockchain transactions and metrics.",
-        "Combine insights from both agents to provide comprehensive analysis.",
-        "Important: When analyzing fees, always correlate with chain activity.",
-        "Finally, provide a clear summary that connects revenue and chain insights."
-    ],
-    show_tool_calls=True,
-    markdown=True
-)
-
-# Page config
+# Page config must be the first Streamlit command
 st.set_page_config(
     page_title="Curve Protocol Agent Chat",
     page_icon="🦙",
     layout="wide"
 )
+
+from phi.agent import Agent
+from agents.revenue_agent import revenue_agent
+from agents.chain_agent import chain_agent
+import os
 
 # Custom CSS
 st.markdown("""
@@ -48,8 +31,27 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# Initialize session state for API key if not present
+if "openai_api_key" not in st.session_state:
+    st.session_state.openai_api_key = ""
+
 # Sidebar
 with st.sidebar:
+    st.title("🔑 API Configuration")
+    api_key = st.text_input(
+        "Enter your OpenAI API key",
+        type="password",
+        value=st.session_state.openai_api_key,
+        help="Get your API key from https://platform.openai.com/account/api-keys"
+    )
+    
+    # Update session state when API key changes
+    if api_key != st.session_state.openai_api_key:
+        st.session_state.openai_api_key = api_key
+        # Set environment variable for OpenAI
+        os.environ["OPENAI_API_KEY"] = api_key
+    
+    st.divider()
     st.title("🦙 About")
     st.markdown("""
     Chat with a LlamaIndex-powered agent that can help you with:
@@ -101,6 +103,26 @@ with st.sidebar:
         - Show me high-fee pools and their transaction volumes
         """)
 
+# Initialize individual agents only if API key is provided
+if st.session_state.openai_api_key:
+    revenue_assistant = revenue_agent
+    chain_assistant = chain_agent
+
+    # Create team as a single agent with multiple sub-agents
+    curve_team = Agent(
+        name="Curve Analysis Team",
+        team=[revenue_assistant, chain_assistant],
+        instructions=[
+            "First, use the revenue agent to analyze fee and revenue data.",
+            "Then, use the chain agent to analyze blockchain transactions and metrics.",
+            "Combine insights from both agents to provide comprehensive analysis.",
+            "Important: When analyzing fees, always correlate with chain activity.",
+            "Finally, provide a clear summary that connects revenue and chain insights."
+        ],
+        show_tool_calls=True,
+        markdown=True
+    )
+
 # Initialize session state
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -113,7 +135,12 @@ chat_container = st.container()
 input_container = st.container()
 
 with input_container:
-    prompt = st.chat_input("What would you like to know?")
+    # Only enable chat input if API key is provided
+    if st.session_state.openai_api_key:
+        prompt = st.chat_input("What would you like to know?")
+    else:
+        st.error("Please enter your OpenAI API key in the sidebar to start chatting.")
+        prompt = None
 
 with chat_container:
     # Display chat messages
@@ -130,23 +157,26 @@ if prompt:
 
         # Get agent response
         with st.chat_message("assistant"):
-            message_placeholder = st.empty()
-            full_response = ""
-            
-            # Select the appropriate assistant based on user selection
-            if st.session_state.agent_selection == "Multi-Agent":
-                with st.spinner("Agents collaborating..."):
-                    response_stream = curve_team.run(prompt, stream=True)
-                    for response in response_stream:
-                        full_response += str(response.content)
-                        message_placeholder.markdown(full_response + "▌")
+            if not st.session_state.openai_api_key:
+                st.error("Please enter your OpenAI API key in the sidebar to get a response.")
             else:
-                selected_assistant = revenue_assistant if st.session_state.agent_selection == "Revenue Agent" else chain_assistant
-                with st.spinner("Thinking..."):
-                    response_stream = selected_assistant.run(prompt, stream=True)
-                    for response in response_stream:
-                        full_response += str(response.content)
-                        message_placeholder.markdown(full_response + "▌")
-            
-            message_placeholder.markdown(full_response)
-            st.session_state.messages.append({"role": "assistant", "content": full_response}) 
+                message_placeholder = st.empty()
+                full_response = ""
+                
+                # Select the appropriate assistant based on user selection
+                if st.session_state.agent_selection == "Multi-Agent":
+                    with st.spinner("Agents collaborating..."):
+                        response_stream = curve_team.run(prompt, stream=True)
+                        for response in response_stream:
+                            full_response += str(response.content)
+                            message_placeholder.markdown(full_response + "▌")
+                else:
+                    selected_assistant = revenue_assistant if st.session_state.agent_selection == "Revenue Agent" else chain_assistant
+                    with st.spinner("Thinking..."):
+                        response_stream = selected_assistant.run(prompt, stream=True)
+                        for response in response_stream:
+                            full_response += str(response.content)
+                            message_placeholder.markdown(full_response + "▌")
+                
+                message_placeholder.markdown(full_response)
+                st.session_state.messages.append({"role": "assistant", "content": full_response}) 
