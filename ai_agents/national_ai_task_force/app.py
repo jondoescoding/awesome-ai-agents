@@ -161,6 +161,61 @@ with st.sidebar:
     # Display the current conversation ID
     st.text(f"Conversation ID: {st.session_state.conversation_id[:8]}...")
     
+    # Add custom CSS for the creator section
+    st.markdown("""
+    <style>
+    .creator-section {
+        background-color: transparent;
+        border: 3px solid #FFFF00;
+        padding: 15px;
+        border-radius: 5px;
+        margin-top: 20px;
+        margin-bottom: 20px;
+    }
+    .creator-section h3 {
+        font-weight: bold;
+    }
+    .creator-section a {
+        display: block;
+        margin-bottom: 8px;
+        text-decoration: none;
+    }
+    .creator-section a:hover {
+        text-decoration: underline;
+    }
+    .creator-links {
+        margin-top: 10px;
+        margin-bottom: 10px;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    # Add information about the creator with custom styling
+    st.markdown("---")
+    st.markdown("""
+    <div class="creator-section">
+    <h3>Created by Jonathan White</h3>
+    
+    <div class="creator-links">
+    <a href="https://www.linkedin.com/in/jonathanwhite-jm/" target="_blank">
+    <img src="https://cdn-icons-png.flaticon.com/512/174/174857.png" width="20"/> LinkedIn
+    </a>
+    <a href="https://twitter.com/jondoescoding" target="_blank">
+    <img src="https://cdn-icons-png.flaticon.com/512/733/733579.png" width="20"/> Twitter
+    </a>
+    <a href="https://nightshadeai.vercel.app/" target="_blank">
+    <img src="https://cdn-icons-png.flaticon.com/512/1006/1006771.png" width="20"/> Website
+    </a>
+    </div>
+    
+    <i>I transform</i> complex ideas into <b>intuitive digital experiences</b>.<br>
+    • Building intelligent <b>chatbots</b> that engage users<br>
+    • Creating <b>rapid prototypes</b> that validate concepts<br>
+    • Leveraging <b>Langchain</b> and <b>Python</b> to deliver solutions<br>
+    <i>Technology that works like magic, feels natural, and drives results.</i>
+    </div>
+    """, unsafe_allow_html=True)
+    
     # Add information about the agent
     st.markdown("---")
     st.markdown("""
