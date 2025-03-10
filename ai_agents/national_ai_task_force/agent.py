@@ -40,7 +40,6 @@ class NationalAITaskForceAgent:
     AVAILABLE_MODELS = {
         "qwen-qwq-32b": "Qwen QWQ 32B",
         "mistral-saba-24b": "Mistral Saba 24B",
-        "deepseek-r1-distill-llama-70b-specdec": "Deepseek R1 Distill LLaMA 70B"
     }
     
     def __init__(self, model_name: str = "qwen-qwq-32b"):

@@ -8,7 +8,6 @@ This project provides a conversational AI agent that can search and analyze info
 - **Semantic Search**: Searches the National AI Task Force document using vector embeddings
 - **Conversation Memory**: Maintains context across multiple interactions
 - **Streamlit Web Interface**: Provides a user-friendly interface for interacting with the agent
-- **Chat Cooldown**: Implements a 7-second cooldown between messages to prevent rate limiting
 - **Error Handling**: Comprehensive error handling for robustness
 
 ## Setup
@@ -93,7 +92,6 @@ The project uses the following architecture:
 3. **Streamlit Web Interface**: A user-friendly interface for interacting with the agent
    - Chat interface for conversations
    - Automatic model switching without requiring a button click
-   - Chat cooldown to prevent rate limiting
 
 ## Customization
 
@@ -107,9 +105,6 @@ You can customize the following parameters:
 ### Agent (in `agent.py`)
 - `model_name`: The GROQ model to use (options: "qwen-qwq-32b", "mistral-saba-24b", "deepseek-r1-distill-llama-70b-specdec")
 - System prompt for the agent can be modified in the `_initialize_agent` method
-
-### Chat Cooldown (in `app.py`)
-- `COOLDOWN_SECONDS`: The number of seconds to wait between chat messages (default: 7)
 
 ## Available GROQ Models
 

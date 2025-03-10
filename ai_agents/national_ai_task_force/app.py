@@ -9,7 +9,6 @@ import os
 import logging
 import streamlit as st
 import uuid  # This is the built-in uuid module, we don't need uuid6
-import time  # Import time for the cooldown feature
 
 # Import the agent class
 from agent import NationalAITaskForceAgent
@@ -27,9 +26,6 @@ st.set_page_config(
     page_icon="🤖",
     layout="wide",
 )
-
-# Constants
-COOLDOWN_SECONDS = 7  # Cooldown period in seconds
 
 # Session state initialization
 def initialize_session_state():
@@ -51,10 +47,6 @@ def initialize_session_state():
     
     if "messages" not in st.session_state:
         st.session_state.messages = []
-    
-    # Initialize last message timestamp for cooldown
-    if "last_message_time" not in st.session_state:
-        st.session_state.last_message_time = 0
 
 def display_chat_message(role, content):
     """Display a chat message in the UI."""
@@ -99,20 +91,8 @@ the Task Force's work, recommendations, or findings.
 for message in st.session_state.messages:
     display_chat_message(message["role"], message["content"])
 
-# Chat input with cooldown
-current_time = time.time()
-time_since_last_message = current_time - st.session_state.last_message_time
-cooldown_remaining = max(0, COOLDOWN_SECONDS - time_since_last_message)
-
-# Show cooldown message if needed
-if cooldown_remaining > 0:
-    st.info(f"Please wait {cooldown_remaining:.1f} seconds before sending another message...")
-
 # Chat input
-user_input = st.chat_input(
-    "Ask a question about the National AI Task Force",
-    disabled=(cooldown_remaining > 0)
-)
+user_input = st.chat_input("Ask a question about the National AI Task Force")
 
 if user_input:
     # Check if agent is initialized
@@ -120,9 +100,6 @@ if user_input:
         st.error("Agent is not initialized. Please refresh the page and try again.")
     else:
         try:
-            # Update last message time for cooldown
-            st.session_state.last_message_time = time.time()
-            
             # Add user message to chat history and display it
             st.session_state.messages.append({"role": "user", "content": user_input})
             display_chat_message("user", user_input)
@@ -174,9 +151,6 @@ with st.sidebar:
             
             # Reset the message history in the UI
             st.session_state.messages = []
-            
-            # Reset the cooldown timer
-            st.session_state.last_message_time = 0
             
             st.success("Started a new conversation!")
             st.rerun()
