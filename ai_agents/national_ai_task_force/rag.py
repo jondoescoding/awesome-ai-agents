@@ -12,7 +12,7 @@ from typing import List, Dict, Any
 # LangChain imports for document loading and processing
 from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_core.vectorstores import InMemoryVectorStore
 from langchain.schema import Document
 
@@ -113,20 +113,42 @@ class NationalAITaskForceVectorStore:
         
         logger.info(f"Searching for: '{query}' with k={k}")
         
-        # Search for similar documents
-        results = self.vector_store.similarity_search_with_score(query, k=k)
-        
-        # Format results
-        formatted_results = []
-        for i, (doc, score) in enumerate(results):
-            logger.info(f"Result {i+1} - Score: {score:.4f}, Page: {doc.metadata.get('page', 'Unknown')}")
-            formatted_results.append({
-                "content": doc.page_content,
-                "metadata": doc.metadata,
-                "score": score
-            })
-        
-        return formatted_results
+        try:
+            # Search for similar documents
+            results = self.vector_store.similarity_search_with_score(query, k=k)
+            
+            # Format results
+            formatted_results = []
+            for i, (doc, score) in enumerate(results):
+                logger.info(f"Result {i+1} - Score: {score:.4f}, Page: {doc.metadata.get('page', 'Unknown')}")
+                formatted_results.append({
+                    "content": doc.page_content,
+                    "metadata": doc.metadata,
+                    "score": score
+                })
+            
+            return formatted_results
+        except Exception as e:
+            logger.error(f"Error in search: {e}")
+            # Try alternative search method if the first one fails
+            try:
+                logger.info("Trying alternative search method")
+                results = self.vector_store.similarity_search(query, k=k)
+                
+                # Format results without scores
+                formatted_results = []
+                for i, doc in enumerate(results):
+                    logger.info(f"Result {i+1} - Page: {doc.metadata.get('page', 'Unknown')}")
+                    formatted_results.append({
+                        "content": doc.page_content,
+                        "metadata": doc.metadata,
+                        "score": 0.0  # Default score since we don't have actual scores
+                    })
+                
+                return formatted_results
+            except Exception as inner_e:
+                logger.error(f"Error in alternative search: {inner_e}")
+                raise
     
     def get_document_count(self) -> int:
         """
@@ -139,9 +161,23 @@ class NationalAITaskForceVectorStore:
             logger.info("Vector store not initialized, creating now...")
             self.create_vector_store()
         
-        count = len(self.vector_store.docstore._dict)
-        logger.info(f"Vector store contains {count} documents")
-        return count
+        # The newer version of InMemoryVectorStore doesn't have a docstore attribute
+        # Instead, we can use the vector store's internal collection
+        try:
+            # First try the newer API
+            count = len(self.vector_store.index_to_docstore_id)
+            logger.info(f"Vector store contains {count} documents")
+            return count
+        except AttributeError:
+            try:
+                # Fall back to the older API
+                count = len(self.vector_store.docstore._dict)
+                logger.info(f"Vector store contains {count} documents")
+                return count
+            except AttributeError:
+                # If both fail, return -1 to indicate unknown count
+                logger.warning("Could not determine document count in vector store")
+                return -1
 
 
 def main():

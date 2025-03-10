@@ -1,0 +1,227 @@
+---
+description: Comprehensive guide to understanding and modifying the National AI Task Force Agent project (the current project)
+globs: *.py,*.md,requirements.txt,.env*
+alwaysApply: false
+---
+---
+description: Comprehensive guide to understanding and modifying the National AI Task Force Agent project
+globs: *.py,*.md,requirements.txt,.env*
+alwaysApply: false
+---
+# National AI Task Force Agent - Project Context and Guidelines
+
+<rule>
+name: national_ai_task_force_context
+description: Provides context and guidelines for understanding and modifying the National AI Task Force Agent codebase
+
+filters:
+  # Match Python files, Markdown docs, and configuration files
+  - type: file_extension
+    pattern: "\\.(py|md)$"
+  - type: file_name
+    pattern: "^(requirements\\.txt|\\.env.*|app\\.py|agent\\.py|rag\\.py|tools\\.py)$"
+  # Match file modification events
+  - type: event
+    pattern: "file_modify|file_create"
+
+actions:
+- type: suggest
+  message: |
+  ## National AI Task Force Agent Project
+
+  This project creates a conversational AI agent that can search and analyze information from the National AI Task Force PDF document using LangGraph's ReAct agent architecture with GROQ's LLaMA model.
+
+  ### Project Purpose
+
+  The agent helps users:
+  - Navigate and extract information from comprehensive policy documents
+  - Get quick access to relevant information without reading the entire document
+  - Understand complex policy recommendations with contextual explanations
+  - Maintain conversation context across multiple queries
+
+  ### Codebase Structure
+
+  The project follows a modular architecture with these key components:
+
+  1. **Vector Store (`rag.py`)**: 
+     - Creates an in-memory vector store from the National AI Task Force PDF
+     - Uses sentence-transformers/all-mpnet-base-v2 for embeddings
+     - Handles document chunking and retrieval
+
+  2. **Agent Implementation (`agent.py`)**:
+     - Implements LangGraph ReAct agent architecture
+     - Uses GROQ's LLaMA model for natural language understanding
+     - Manages conversation memory and thread-based state
+
+  3. **Search Tools (`tools.py`)**:
+     - Provides the search functionality that connects the agent to the vector store
+     - Implements singleton pattern for vector store efficiency
+
+  4. **Web Interface (`app.py`)**:
+     - Streamlit-based chat interface for user interactions
+     - Manages session state and conversation history
+     - Provides configuration options for model selection and API keys
+
+  5. **Configuration Files**:
+     - `requirements.txt`: Project dependencies
+     - `.env`: Environment variables (API keys)
+     - `.env.example`: Template for environment variables
+
+  6. **Documentation**:
+     - `README.md`: Project overview and setup instructions
+     - `PRD.md`: Comprehensive Product Requirements Document
+
+  ### Modifying the Codebase
+
+  When making changes to this project, follow these guidelines:
+
+  1. **Vector Store Modifications**:
+     - Maintain chunk size (1000) and overlap (200) parameters unless explicitly requested
+     - Use the HuggingFaceEmbeddings with the specified model
+     - Preserve the singleton pattern for vector store initialization
+
+  2. **Agent Modifications**:
+     - Follow LangGraph ReAct agent patterns
+     - Use GROQ LLaMA models for LLM operations
+     - Maintain proper checkpointing for conversation memory
+     - Keep the modular architecture separating agent, tools, and RAG components
+
+  3. **User Interface Changes**:
+     - Preserve the Streamlit session state management pattern
+     - Maintain the chat-based interface design
+     - Ensure error handling and feedback mechanisms remain intact
+
+  4. **Adding New Features**:
+     - Integrate new tools through the LangGraph agent framework
+     - Add new document sources through the existing RAG pattern
+     - Extend UI functionality while preserving existing patterns
+
+  5. **Testing Changes**:
+     - Test with diverse queries across different conversation threads
+     - Verify memory persistence across interactions
+     - Check error handling for edge cases
+
+  6. **Documentation Updates**:
+     - Update relevant documentation when changing functionality
+     - Follow the existing documentation style and structure
+
+  ### Key Constants and Configuration
+
+  - **Vector Store**:
+    - `CHUNK_SIZE = 1000`  
+    - `CHUNK_OVERLAP = 200`
+    - `EMBEDDING_MODEL = "sentence-transformers/all-mpnet-base-v2"`
+
+  - **Agent Models**:
+    - `llama3` (default)
+    - `llama3-70b`
+    - `llama3-8b`
+
+  - **Environment Variables**:
+    - `GROQ_API_KEY` (required)
+
+examples:
+- input: |
+  # Example of correctly modifying the agent implementation
+  
+  # In agent.py
+  def _initialize_agent(self) -> None:
+      """
+      Initialize the LangGraph ReAct agent with the GROQ LLaMA model.
+      """
+      try:
+          # Get API key from environment variable
+          api_key = os.getenv("GROQ_API_KEY")
+          if not api_key:
+              logger.error("GROQ_API_KEY environment variable not set")
+              raise ValueError("GROQ_API_KEY environment variable not set")
+          
+          # Initialize the GROQ LLaMA model
+          logger.info(f"Initializing GROQ model: {self.model_name}")
+          llm = ChatGroq(
+              model_name=self.model_name,
+              groq_api_key=api_key,
+              temperature=0.7,
+              streaming=True
+          )
+          
+          # Enhanced system prompt with additional context
+          system_prompt = """You are a helpful AI assistant for the National AI Task Force. 
+          Your role is to provide information and analysis based on the National AI Task Force 
+          documents. When asked a question, use the search_national_ai_task_force tool to find 
+          relevant information, and then provide a conversational response based on that information.
+          
+          Be thorough and informative in your responses, but maintain a conversational and 
+          helpful tone. If you don't know the answer or can't find relevant information, 
+          be honest about it. When providing policy recommendations, clearly indicate their source."""
+          
+          # Initialize the memory saver for conversation history
+          logger.info("Initializing conversation memory")
+          memory_saver = MemorySaver()
+          
+          # Create the ReAct agent
+          logger.info("Creating ReAct agent with the search tool")
+          self.agent = create_react_agent(
+              llm,
+              [search_national_ai_task_force],
+              prompt=system_prompt,
+              checkpointer=memory_saver,
+          )
+          
+          logger.info("Agent successfully created")
+          
+      except Exception as e:
+          logger.error(f"Error in _initialize_agent: {e}")
+          raise
+  
+  output: "Correctly modified the agent implementation while preserving the core architecture"
+
+- input: |
+  # Example of correctly adding a new search tool
+  
+  # In tools.py
+  @tool
+  def search_national_ai_task_force_by_section(section: str, query: str, k: int = 5) -> List[Dict[str, Any]]:
+      """
+      Search a specific section of the National AI Task Force PDF document.
+      
+      Args:
+          section: The section to search within (e.g., "Recommendations", "Implementation")
+          query: The search query to find relevant information in the document
+          k: Number of results to return (default: 5)
+          
+      Returns:
+          A list of document chunks that match the query, with their metadata and similarity scores
+      """
+      logger.info(f"Tool called with section: '{section}', query: '{query}', k={k}")
+      
+      try:
+          # Get or initialize the vector store
+          vector_store = get_vector_store()
+          
+          # Construct a filtered query
+          filtered_query = f"In the {section} section: {query}"
+          
+          # Search for documents
+          logger.info(f"Searching vector store for: '{filtered_query}'")
+          results = vector_store.search(filtered_query, k=k)
+          
+          # Filter results to only include those from the requested section
+          filtered_results = [
+              result for result in results 
+              if result.get("metadata", {}).get("section", "").lower() == section.lower()
+          ]
+          
+          logger.info(f"Found {len(filtered_results)} results for section: '{section}', query: '{query}'")
+          return filtered_results
+      
+      except Exception as e:
+          logger.error(f"Error searching National AI Task Force document: {e}")
+          return [{"error": f"Error searching National AI Task Force document: {e}"}]
+  
+  output: "Correctly added a new search tool while maintaining the existing patterns"
+
+metadata:
+  priority: high
+  version: 1.0
+</rule>

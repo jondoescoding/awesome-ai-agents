@@ -1,0 +1,84 @@
+---
+description: Standards for vector stores and embedding models in the National AI Task Force project
+globs: *.py
+alwaysApply: false
+---
+ ---
+description: Standards for vector stores and embedding models in the National AI Task Force project
+globs: *.py
+alwaysApply: false
+---
+# Vector Store and Embedding Models
+
+<rule>
+name: vector_store_embeddings
+description: Standards for implementing and using vector stores and embedding models in the project
+
+filters:
+  # Match Python files
+  - type: file_extension
+    pattern: "\\.py$"
+  # Match files that use vector stores or embeddings
+  - type: content
+    pattern: "(?s)(vector_?store|embedding|InMemoryVectorStore|HuggingFaceEmbeddings)"
+
+actions:
+- type: suggest
+  message: |
+  ## Vector Store Standards
+  
+  The National AI Task Force project uses the following vector store standards:
+  
+  1. **Primary Vector Store**: `InMemoryVectorStore` from LangChain
+     - Used for storing document embeddings in memory
+     - Suitable for development and testing
+     - Not persistent across application restarts
+  
+  2. **Document Processing**:
+     - Chunk size: 1000 characters
+     - Chunk overlap: 200 characters
+     - Use `RecursiveCharacterTextSplitter` for document splitting
+  
+  ## Embedding Models
+  
+  The project uses the following embedding models:
+  
+  1. **Primary Embedding Model**: `sentence-transformers/all-mpnet-base-v2`
+     - High-quality general-purpose embeddings
+     - 768-dimensional vectors
+     - Used via `HuggingFaceEmbeddings` from LangChain
+  
+  ## Implementation Guidelines
+  
+  When working with vector stores and embeddings:
+  
+  1. Initialize the vector store only once and reuse it for subsequent calls
+  2. Use the singleton pattern to avoid reloading documents
+  3. Include proper error handling for file not found and other exceptions
+  4. Add detailed logging for each step of the process
+  5. Implement a clean API with simple parameters
+
+examples:
+- input: |
+  # Example of correct vector store implementation
+  
+  from langchain_community.embeddings import HuggingFaceEmbeddings
+  from langchain_core.vectorstores import InMemoryVectorStore
+  
+  # Constants
+  CHUNK_SIZE = 1000
+  CHUNK_OVERLAP = 200
+  EMBEDDING_MODEL = "sentence-transformers/all-mpnet-base-v2"
+  
+  # Initialize embeddings
+  embeddings = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL)
+  
+  # Create vector store
+  vector_store = InMemoryVectorStore(embedding=embeddings)
+  
+  output: "Correctly implemented vector store with recommended embedding model"
+
+metadata:
+  priority: medium
+  version: 1.0
+</rule>

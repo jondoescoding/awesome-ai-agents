@@ -1,0 +1,130 @@
+---
+description: Standards for the LangGraph agent implementation with Streamlit, memory, and GROQ LLM
+globs: *.py
+alwaysApply: false
+---
+---
+description: Standards for the LangGraph agent implementation with Streamlit, memory, and GROQ LLM
+globs: *.py
+alwaysApply: false
+---
+ ---
+description: Standards for the LangGraph agent implementation with Streamlit, memory, and GROQ LLM
+globs: *.py
+alwaysApply: false
+---
+# LangGraph Agent with Streamlit and GROQ
+
+<rule>
+name: langgraph_agent_standards
+description: Standards for implementing and using LangGraph ReAct agents with Streamlit interface, memory, and GROQ LLaMA model
+
+filters:
+  # Match Python files
+  - type: file_extension
+    pattern: "\\.py$"
+  # Match files that use LangGraph, Streamlit, or GROQ
+  - type: content
+    pattern: "(?s)(langgraph|streamlit|groq|ChatGroq|create_react_agent|MemorySaver)"
+
+actions:
+- type: suggest
+  message: |
+  ## LangGraph Agent Standards
+  
+  The National AI Task Force project uses the following agent standards:
+  
+  1. **LangGraph ReAct Agent**:
+     - Uses `create_react_agent` from LangGraph
+     - Built with prebuilt components for consistent implementation
+     - Implements the ReAct (Reasoning + Acting) paradigm
+     - Version: 0.3.1 or newer
+  
+  2. **Memory/State Management**:
+     - Uses `MemorySaver` from LangGraph for conversation history
+     - Thread-based conversations with unique IDs
+     - State persistence between interactions
+     - Proper memory cleanup methods
+  
+  3. **LLM Provider**:
+     - **Primary LLM**: GROQ's LLaMA model
+     - Uses `ChatGroq` from langchain_groq
+     - Available models: "llama3", "llama3-70b", "llama3-8b"
+     - API key stored in environment variables
+  
+  4. **Streamlit Interface**:
+     - Chat-based UI for conversations
+     - Session state management for agent persistence
+     - Proper error handling and user feedback
+     - Model selection options in sidebar
+     - Conversation history display
+  
+  ## Implementation Guidelines
+  
+  When working with the LangGraph agent:
+  
+  1. Always initialize the GROQ LLM with proper error handling for API keys
+  2. Use thread IDs for conversation persistence
+  3. Structure the agent with proper checkpointing for memory
+  4. Implement comprehensive error handling and logging
+  5. Follow the Streamlit session state pattern for UI state management
+  6. Always provide clear user feedback in the interface
+
+examples:
+- input: |
+  # Example of correct LangGraph agent implementation
+  
+  from langchain_core.messages import AIMessage, HumanMessage
+  from langchain_groq import ChatGroq
+  from langgraph.prebuilt import create_react_agent
+  from langgraph.checkpoint.memory import MemorySaver
+  
+  # Initialize the GROQ LLaMA model
+  llm = ChatGroq(
+      model_name="llama3",
+      groq_api_key=api_key,
+      temperature=0.7
+  )
+  
+  # Initialize memory for conversation history
+  memory_saver = MemorySaver()
+  
+  # Create the ReAct agent
+  agent = create_react_agent(
+      llm,
+      tools,
+      prompt=system_prompt,
+      checkpointer=memory_saver,
+  )
+  
+  output: "Correctly implemented LangGraph agent with GROQ LLaMA"
+
+- input: |
+  # Example of correct Streamlit implementation
+  
+  import streamlit as st
+  
+  # Initialize session state
+  if "agent" not in st.session_state:
+      st.session_state.agent = NationalAITaskForceAgent()
+  
+  if "conversation_id" not in st.session_state:
+      st.session_state.conversation_id = str(uuid.uuid4())
+  
+  if "messages" not in st.session_state:
+      st.session_state.messages = []
+  
+  # Chat input and response
+  if user_input := st.chat_input("Ask a question"):
+      response = st.session_state.agent.chat(
+          user_message=user_input,
+          thread_id=st.session_state.conversation_id
+      )
+      st.session_state.messages.append({"role": "assistant", "content": response})
+  
+  output: "Correctly implemented Streamlit interface with session state"
+
+metadata:
+  priority: high
+  version: 1.0
+</rule>
