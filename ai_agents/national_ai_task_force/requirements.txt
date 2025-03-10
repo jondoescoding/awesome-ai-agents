@@ -5,7 +5,7 @@ langchain-huggingface==0.0.2
 langgraph==0.3.1
 streamlit==1.30.0
 sentence-transformers>=2.6.0
-transformers==4.35.2
+transformers>=4.39.2
 torch==2.1.1
 pypdf==3.17.1
 tiktoken==0.5.1
