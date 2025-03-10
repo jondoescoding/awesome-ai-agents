@@ -8,8 +8,8 @@ National AI Task Force Agent using Streamlit.
 import os
 import logging
 import streamlit as st
-from typing import Dict, Any, List, Optional
 import uuid  # This is the built-in uuid module, we don't need uuid6
+import time  # Import time for the cooldown feature
 
 # Import the agent class
 from agent import NationalAITaskForceAgent
@@ -27,6 +27,9 @@ st.set_page_config(
     page_icon="🤖",
     layout="wide",
 )
+
+# Constants
+COOLDOWN_SECONDS = 7  # Cooldown period in seconds
 
 # Session state initialization
 def initialize_session_state():
@@ -48,11 +51,38 @@ def initialize_session_state():
     
     if "messages" not in st.session_state:
         st.session_state.messages = []
+    
+    # Initialize last message timestamp for cooldown
+    if "last_message_time" not in st.session_state:
+        st.session_state.last_message_time = 0
 
 def display_chat_message(role, content):
     """Display a chat message in the UI."""
     with st.chat_message(role):
         st.markdown(content)
+
+def on_model_change():
+    """Handle model change event."""
+    try:
+        selected_model_name = st.session_state.selected_model
+        logger.info(f"Changing model to {selected_model_name}")
+        
+        # Reinitialize the agent with the new model
+        st.session_state.agent = NationalAITaskForceAgent(model_name=selected_model_name)
+        
+        # Generate a new conversation ID
+        st.session_state.conversation_id = str(uuid.uuid4())
+        logger.info(f"Generated new conversation ID: {st.session_state.conversation_id}")
+        
+        # Reset the message history in the UI
+        st.session_state.messages = []
+        
+        # Show success message
+        st.success(f"Model changed to {NationalAITaskForceAgent.AVAILABLE_MODELS[selected_model_name]}!")
+        
+    except Exception as e:
+        logger.error(f"Error changing model: {e}")
+        st.error(f"Failed to change model: {e}")
 
 # Initialize session state
 initialize_session_state()
@@ -69,13 +99,30 @@ the Task Force's work, recommendations, or findings.
 for message in st.session_state.messages:
     display_chat_message(message["role"], message["content"])
 
+# Chat input with cooldown
+current_time = time.time()
+time_since_last_message = current_time - st.session_state.last_message_time
+cooldown_remaining = max(0, COOLDOWN_SECONDS - time_since_last_message)
+
+# Show cooldown message if needed
+if cooldown_remaining > 0:
+    st.info(f"Please wait {cooldown_remaining:.1f} seconds before sending another message...")
+
 # Chat input
-if user_input := st.chat_input("Ask a question about the National AI Task Force"):
+user_input = st.chat_input(
+    "Ask a question about the National AI Task Force",
+    disabled=(cooldown_remaining > 0)
+)
+
+if user_input:
     # Check if agent is initialized
     if st.session_state.agent is None:
         st.error("Agent is not initialized. Please refresh the page and try again.")
     else:
         try:
+            # Update last message time for cooldown
+            st.session_state.last_message_time = time.time()
+            
             # Add user message to chat history and display it
             st.session_state.messages.append({"role": "user", "content": user_input})
             display_chat_message("user", user_input)
@@ -105,12 +152,16 @@ if user_input := st.chat_input("Ask a question about the National AI Task Force"
 with st.sidebar:
     st.header("Options")
     
-    # Model selection
-    model_options = ["llama-3.1-8b-instant", "llama3-70b-8192", "llama3-8b-8192"]
-    selected_model = st.selectbox(
-        "Select GROQ LLaMA Model",
-        options=model_options,
+    # Model selection with automatic change
+    model_options = NationalAITaskForceAgent.AVAILABLE_MODELS
+    
+    st.selectbox(
+        "Select GROQ Model",
+        options=list(model_options.keys()),
+        format_func=lambda x: model_options[x],
         index=0,
+        key="selected_model",
+        on_change=on_model_change
     )
     
     # Button to create a new conversation
@@ -124,39 +175,14 @@ with st.sidebar:
             # Reset the message history in the UI
             st.session_state.messages = []
             
-            # Instead of trying to reset the thread, we'll just use the new conversation ID
-            # which will effectively create a new conversation thread
+            # Reset the cooldown timer
+            st.session_state.last_message_time = 0
             
             st.success("Started a new conversation!")
             st.rerun()
         except Exception as e:
             logger.error(f"Error creating new conversation: {e}")
             st.error(f"Failed to create new conversation: {e}")
-    
-    # API key input
-    api_key = st.text_input(
-        "GROQ API Key",
-        type="password",
-        placeholder="Enter your GROQ API key",
-        value=os.getenv("GROQ_API_KEY", "")
-    )
-    
-    # Button to update API key
-    if st.button("Update API Key"):
-        if api_key:
-            logger.info("Updating GROQ API key")
-            os.environ["GROQ_API_KEY"] = api_key
-            
-            # Reinitialize the agent with the new API key
-            try:
-                logger.info("Reinitializing agent with new API key")
-                st.session_state.agent = NationalAITaskForceAgent(model_name=selected_model)
-                st.success("API key updated and agent reinitialized!")
-            except Exception as e:
-                logger.error(f"Error reinitializing agent: {e}")
-                st.error(f"Failed to reinitialize agent: {e}")
-        else:
-            st.warning("Please enter an API key.")
     
     # Display the current conversation ID
     st.text(f"Conversation ID: {st.session_state.conversation_id[:8]}...")
@@ -209,9 +235,8 @@ with st.sidebar:
     </div>
     
     <i>I transform</i> complex ideas into <b>intuitive digital experiences</b>.<br>
-    • Building intelligent <b>chatbots</b> that engage users<br>
-    • Creating <b>rapid prototypes</b> that validate concepts<br>
-    • Leveraging <b>Langchain</b> and <b>Python</b> to deliver solutions<br>
+    • Building intelligent <b>chatbots</b> that engage users, online 24/7 and are accurate. <br>
+    • Creating <b>rapid prototypes</b> to validate concepts using lovable, base44 and rork. (Skip the Figma board). <br>
     <i>Technology that works like magic, feels natural, and drives results.</i>
     </div>
     """, unsafe_allow_html=True)
@@ -221,7 +246,7 @@ with st.sidebar:
     st.markdown("""
     ### About
     
-    This agent uses LangGraph's ReAct architecture with GROQ's LLaMA model to 
+    This agent uses LangGraph's ReAct architecture with GROQ models to 
     provide information and analysis based on the National AI Task Force documents.
     
     It maintains conversation context across multiple interactions and uses 

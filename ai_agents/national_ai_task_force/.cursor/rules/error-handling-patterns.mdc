@@ -1,0 +1,352 @@
+---
+description: Standardized error handling patterns for the National AI Task Force project
+globs: *.py
+alwaysApply: false
+---
+# Error Handling Patterns
+
+<rule>
+name: error_handling_patterns
+description: Comprehensive error handling patterns for robust application behavior
+
+filters:
+  # Match Python files
+  - type: file_extension
+    pattern: "\\.py$"
+  # Match files that might need error handling
+  - type: content
+    pattern: "(?s)(try|except|raise|error|exception)"
+
+actions:
+- type: suggest
+  message: |
+  ## Error Handling Standards
+  
+  The National AI Task Force project implements the following error handling standards:
+  
+  1. **Layered Error Handling**:
+     - Component-level error handling with specific exceptions
+     - Service-level error handling with graceful degradation
+     - Application-level error handling with user-friendly messages
+  
+  2. **Exception Hierarchy**:
+     - Use specific exception types for different error categories
+     - Implement custom exceptions for domain-specific errors
+     - Maintain proper exception inheritance
+  
+  3. **Error Recovery Strategies**:
+     - Implement fallback mechanisms for critical operations
+     - Use retry patterns with exponential backoff for transient failures
+     - Provide graceful degradation when services are unavailable
+  
+  4. **Logging and Monitoring**:
+     - Log detailed error information for debugging
+     - Include context information in error messages
+     - Use different log levels appropriately (ERROR, WARNING, INFO)
+  
+  ## Implementation Guidelines
+  
+  When implementing error handling:
+  
+  1. **Be Specific**:
+     - Catch specific exceptions rather than using bare `except` clauses
+     - Handle different error types with appropriate responses
+     - Avoid suppressing exceptions without proper handling
+  
+  2. **Preserve Context**:
+     - Use exception chaining with `raise ... from ...` syntax
+     - Include relevant context in error messages
+     - Log stack traces for unexpected errors
+  
+  3. **Fail Gracefully**:
+     - Provide meaningful fallback behavior when possible
+     - Return partial results with error indicators when appropriate
+     - Ensure resources are properly cleaned up using `finally` blocks
+  
+  4. **User Experience**:
+     - Convert technical errors to user-friendly messages
+     - Provide actionable information when possible
+     - Maintain consistent error reporting patterns
+
+examples:
+- input: |
+  # Example of comprehensive error handling for vector store operations
+  
+  import logging
+  import time
+  import os
+  from typing import List, Dict, Any, Optional
+  
+  class VectorStoreError(Exception):
+      """Base exception class for vector store operations."""
+      pass
+  
+  class IndexNotFoundError(VectorStoreError):
+      """Raised when a vector store index cannot be found."""
+      pass
+  
+  class IndexCreationError(VectorStoreError):
+      """Raised when there's an error creating a vector store index."""
+      pass
+  
+  class SearchError(VectorStoreError):
+      """Raised when there's an error during vector store search."""
+      pass
+  
+  class VectorStore:
+      """
+      Vector store implementation with comprehensive error handling.
+      """
+      
+      def __init__(self, index_path: str, embedding_model: str):
+          """
+          Initialize the vector store with robust error handling.
+          
+          Args:
+              index_path: Path to the FAISS index
+              embedding_model: Name of the embedding model to use
+              
+          Raises:
+              ValueError: If parameters are invalid
+              RuntimeError: If initialization fails
+          """
+          self.index_path = index_path
+          self.embedding_model = embedding_model
+          self.logger = logging.getLogger(__name__)
+          
+          try:
+              # Initialize embeddings
+              self.logger.info(f"Loading embedding model: {embedding_model}")
+              self._initialize_embeddings()
+          except ImportError as e:
+              # Handle missing dependencies
+              self.logger.error(f"Failed to import required modules: {e}")
+              raise RuntimeError(f"Missing dependencies for vector store: {e}") from e
+          except Exception as e:
+              # Handle unexpected errors
+              self.logger.error(f"Unexpected error initializing embeddings: {e}")
+              raise RuntimeError(f"Failed to initialize embeddings: {e}") from e
+      
+      def load_or_create_index(self) -> None:
+          """
+          Load existing index or create a new one with proper error handling.
+          
+          Raises:
+              IndexNotFoundError: If index cannot be found and creation fails
+              IndexCreationError: If index creation fails
+          """
+          try:
+              if os.path.exists(self.index_path):
+                  self._load_index()
+              else:
+                  self._create_index()
+          except FileNotFoundError as e:
+              # Handle missing files
+              self.logger.error(f"Required file not found: {e}")
+              raise IndexNotFoundError(f"Missing required file: {e}") from e
+          except PermissionError as e:
+              # Handle permission issues
+              self.logger.error(f"Permission denied accessing index: {e}")
+              raise IndexNotFoundError(f"Permission denied: {e}") from e
+          except Exception as e:
+              # Handle unexpected errors
+              self.logger.error(f"Failed to load or create index: {e}")
+              raise IndexCreationError(f"Index initialization failed: {e}") from e
+      
+      def search(self, query: str, k: int = 5) -> List[Dict[str, Any]]:
+          """
+          Search the vector store with comprehensive error handling.
+          
+          Args:
+              query: The search query
+              k: Number of results to return
+              
+          Returns:
+              List of search results
+              
+          Raises:
+              SearchError: If search operation fails
+              ValueError: If parameters are invalid
+          """
+          # Validate parameters
+          if not query or not isinstance(query, str):
+              raise ValueError("Query must be a non-empty string")
+          
+          if not isinstance(k, int) or k <= 0:
+              raise ValueError("k must be a positive integer")
+          
+          try:
+              # Attempt primary search method
+              self.logger.info(f"Searching for: '{query}' with k={k}")
+              start_time = time.time()
+              results = self._primary_search_method(query, k)
+              search_time = time.time() - start_time
+              self.logger.info(f"Search completed in {search_time:.4f} seconds")
+              return results
+          except Exception as primary_error:
+              # Log the primary error
+              self.logger.warning(f"Primary search method failed: {primary_error}")
+              
+              try:
+                  # Attempt fallback search method
+                  self.logger.info("Trying fallback search method")
+                  results = self._fallback_search_method(query, k)
+                  self.logger.info("Fallback search successful")
+                  return results
+              except Exception as fallback_error:
+                  # Both methods failed, raise a comprehensive error
+                  self.logger.error(f"All search methods failed. Primary error: {primary_error}, Fallback error: {fallback_error}")
+                  raise SearchError(f"Search failed: {fallback_error}") from fallback_error
+      
+      def _handle_transient_error(self, operation: callable, max_retries: int = 3) -> Any:
+          """
+          Handle transient errors with retry pattern and exponential backoff.
+          
+          Args:
+              operation: Callable operation to retry
+              max_retries: Maximum number of retry attempts
+              
+          Returns:
+              Result of the operation
+              
+          Raises:
+              Exception: If all retries fail
+          """
+          last_exception = None
+          
+          for attempt in range(max_retries):
+              try:
+                  return operation()
+              except (ConnectionError, TimeoutError) as e:
+                  # These are transient errors that might resolve with retries
+                  wait_time = 2 ** attempt  # Exponential backoff
+                  last_exception = e
+                  self.logger.warning(f"Transient error (attempt {attempt+1}/{max_retries}): {e}. Retrying in {wait_time}s")
+                  time.sleep(wait_time)
+          
+          # If we get here, all retries failed
+          self.logger.error(f"Operation failed after {max_retries} attempts")
+          raise last_exception
+  
+  # Usage example with comprehensive error handling
+  try:
+      # Initialize vector store
+      vector_store = VectorStore("faiss_index", "sentence-transformers/all-mpnet-base-v2")
+      
+      # Load or create index with proper error handling
+      try:
+          vector_store.load_or_create_index()
+      except IndexNotFoundError as e:
+          logger.error(f"Could not find or create index: {e}")
+          # Implement fallback behavior or notify user
+          raise RuntimeError("Search functionality unavailable") from e
+      
+      # Perform search with proper error handling
+      try:
+          results = vector_store.search("What are the key recommendations?")
+          # Process results
+      except SearchError as e:
+          logger.error(f"Search failed: {e}")
+          # Return partial results or error message to user
+          results = [{"error": "Search failed, please try a different query"}]
+      
+  except Exception as e:
+      # Top-level error handler
+      logger.critical(f"Unexpected error: {e}")
+      # Provide user-friendly message
+      print("An unexpected error occurred. Please try again later.")
+  
+  output: "Comprehensive error handling implementation for vector store operations"
+
+- input: |
+  # Example of error handling with graceful degradation
+  
+  def search_with_graceful_degradation(query: str, k: int = 5) -> Dict[str, Any]:
+      """
+      Search function with graceful degradation through multiple fallback options.
+      
+      Args:
+          query: The search query
+          k: Number of results to return
+          
+      Returns:
+          Dictionary with results and status information
+      """
+      response = {
+          "results": [],
+          "status": "success",
+          "message": "",
+          "fallback_used": False,
+          "query_time": 0
+      }
+      
+      try:
+          # Try primary vector search first (most accurate)
+          start_time = time.time()
+          logger.info(f"Attempting primary vector search for: '{query}'")
+          
+          try:
+              # Get vector store
+              vector_store = get_vector_store()
+              
+              # Perform search
+              results = vector_store.search(query, k=k)
+              
+              response["results"] = results
+              response["query_time"] = time.time() - start_time
+              logger.info(f"Primary search successful in {response['query_time']:.4f}s")
+              return response
+              
+          except (IndexNotFoundError, SearchError) as e:
+              # Vector store issues - try keyword search fallback
+              logger.warning(f"Primary search failed, trying keyword fallback: {e}")
+              response["fallback_used"] = True
+              
+              try:
+                  # Keyword-based fallback search
+                  fallback_start = time.time()
+                  results = keyword_search(query, k=k)
+                  
+                  response["results"] = results
+                  response["status"] = "partial_success"
+                  response["message"] = "Using keyword search results (less accurate)"
+                  response["query_time"] = time.time() - start_time
+                  logger.info(f"Keyword fallback successful in {time.time() - fallback_start:.4f}s")
+                  return response
+                  
+              except Exception as keyword_error:
+                  # Both vector and keyword search failed - try cached results
+                  logger.warning(f"Keyword fallback failed: {keyword_error}")
+                  
+                  try:
+                      # Last resort - return cached popular results
+                      cache_start = time.time()
+                      results = get_cached_popular_results(k=k)
+                      
+                      response["results"] = results
+                      response["status"] = "degraded"
+                      response["message"] = "Showing popular results instead of search results"
+                      response["fallback_used"] = True
+                      response["query_time"] = time.time() - start_time
+                      logger.info(f"Using cached results in {time.time() - cache_start:.4f}s")
+                      return response
+                      
+                  except Exception as cache_error:
+                      # All methods failed
+                      logger.error(f"All search methods failed: {cache_error}")
+                      raise RuntimeError("Complete search failure") from cache_error
+      
+      except Exception as e:
+          # Unexpected error - return error response
+          logger.error(f"Unexpected error in search: {e}")
+          response["status"] = "error"
+          response["message"] = "Search failed due to an unexpected error"
+          response["query_time"] = time.time() - start_time
+          return response
+  
+  output: "Error handling implementation with graceful degradation through multiple fallback options"
+
+metadata:
+  priority: high
+  version: 1.0
+</rule> 

@@ -1,21 +1,27 @@
 """
-National AI Task Force Agent using LangGraph and GROQ's LLaMA model
+National AI Task Force Agent using LangGraph and GROQ models
 
 This module implements a conversational agent that can search and analyze 
 information from the National AI Task Force documents using LangGraph's 
-ReAct agent architecture with GROQ's LLaMA model.
+ReAct agent architecture with GROQ models.
 """
 
 import logging
 import os
+from typing import Optional
+
 # LangChain and LangGraph imports
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_groq import ChatGroq
 from langgraph.prebuilt import create_react_agent
 from langgraph.checkpoint.memory import InMemorySaver
+from dotenv import load_dotenv
 
 # Import the search tool
 from tools import search_national_ai_task_force
+
+# Load environment variables
+load_dotenv()
 
 # Set up logging
 logging.basicConfig(
@@ -30,12 +36,19 @@ class NationalAITaskForceAgent:
     the National AI Task Force documents using LangGraph's ReAct agent.
     """
     
-    def __init__(self, model_name: str = "llama-3.1-8b-instant"):
+    # Available models from GROQ
+    AVAILABLE_MODELS = {
+        "qwen-qwq-32b": "Qwen QWQ 32B",
+        "mistral-saba-24b": "Mistral Saba 24B",
+        "deepseek-r1-distill-llama-70b-specdec": "Deepseek R1 Distill LLaMA 70B"
+    }
+    
+    def __init__(self, model_name: str = "qwen-qwq-32b"):
         """
         Initialize the agent with the specified model.
         
         Args:
-            model_name: The GROQ model to use (default: llama-3.1-8b-instant)
+            model_name: The GROQ model to use (default: qwen-qwq-32b)
         """
         self.model_name = model_name
         self.agent = None
@@ -51,7 +64,7 @@ class NationalAITaskForceAgent:
     
     def _initialize_agent(self) -> None:
         """
-        Initialize the LangGraph ReAct agent with the GROQ LLaMA model.
+        Initialize the LangGraph ReAct agent with the GROQ model.
         """
         try:
             # Get API key from environment variable
@@ -60,19 +73,19 @@ class NationalAITaskForceAgent:
                 logger.error("GROQ_API_KEY environment variable not set")
                 raise ValueError("GROQ_API_KEY environment variable not set")
             
-            # Initialize the GROQ LLaMA model
+            # Initialize the GROQ model
             logger.info(f"Initializing GROQ model: {self.model_name}")
             llm = ChatGroq(
                 model_name=self.model_name,
                 groq_api_key=api_key,
-                temperature=0.7,
+                temperature=0.5,
                 streaming=True
             )
             
             # Define the system prompt for the agent
-            system_prompt = """You are a helpful AI assistant for the National AI Task Force. 
+            system_prompt = """You are a helpful AI assistant for the National AI Task Force recent policy recommendation document. 
             Your role is to provide information and analysis based on the National AI Task Force 
-            documents. When asked a question, use the search_national_ai_task_force tool to find 
+            document. When asked a question about the National AI Task Force, use the search_national_ai_task_force tool to find 
             relevant information, and then provide a conversational response based on that information.
             
             Be thorough and informative in your responses, but maintain a conversational and 
@@ -198,7 +211,6 @@ def main():
     except Exception as e:
         logger.error(f"Error in main: {e}")
         print(f"Error: {e}")
-
 
 if __name__ == "__main__":
     main()

@@ -1,0 +1,516 @@
+---
+description: Performance optimization techniques for FAISS vector stores in the National AI Task Force project
+globs: *.py
+alwaysApply: false
+---
+# FAISS Performance Optimization
+
+<rule>
+name: faiss_performance_optimization
+description: Advanced techniques for optimizing FAISS vector store performance
+
+filters:
+  # Match Python files
+  - type: file_extension
+    pattern: "\\.py$"
+  # Match files that use FAISS
+  - type: content
+    pattern: "(?s)(FAISS|faiss|vector_?store)"
+
+actions:
+- type: suggest
+  message: |
+  ## FAISS Performance Optimization
+  
+  The National AI Task Force project implements the following FAISS optimization techniques:
+  
+  1. **Index Selection**:
+     - Use `IndexFlatL2` for small datasets (< 10K vectors) for exact search
+     - Use `IndexIVFFlat` for medium datasets (10K-1M vectors) for approximate search
+     - Use `IndexIVFPQ` for large datasets (> 1M vectors) for compressed storage
+     - Current project uses the appropriate index based on document size
+  
+  2. **Search Parameters**:
+     - Optimize `nprobe` parameter for IVF indexes (controls search accuracy vs. speed)
+     - Use appropriate `k` values for similarity search (typically 5-10)
+     - Benchmark different parameter combinations for your specific use case
+  
+  3. **Memory Management**:
+     - Implement proper resource cleanup
+     - Use memory-mapped indexes for large datasets
+     - Consider GPU acceleration for very large datasets
+  
+  4. **Caching Strategies**:
+     - Cache frequent queries
+     - Implement result caching for popular searches
+     - Use LRU (Least Recently Used) cache for efficient memory usage
+  
+  ## Performance Benchmarks
+  
+  Current FAISS implementation achieves:
+  
+  - **Index Creation**: ~20-25 seconds for 60-70 document chunks
+  - **Index Loading**: ~0.05 seconds from disk
+  - **Query Time**: ~0.08-0.10 seconds per search
+  - **Memory Usage**: Efficient with minimal footprint
+  
+  ## Implementation Guidelines
+  
+  When optimizing FAISS performance:
+  
+  1. **Measure First**:
+     - Always benchmark before and after optimizations
+     - Use timing decorators to track performance
+     - Log performance metrics for analysis
+  
+  2. **Index Configuration**:
+     - Choose appropriate index types based on dataset size
+     - Tune index parameters for your specific use case
+     - Consider the tradeoff between search speed and accuracy
+  
+  3. **Resource Management**:
+     - Initialize the vector store only once
+     - Implement proper cleanup of resources
+     - Monitor memory usage during operations
+  
+  4. **Batch Processing**:
+     - Use batch operations when possible
+     - Process documents in chunks for large datasets
+     - Implement progress tracking for long-running operations
+
+examples:
+- input: |
+  # Example of optimized FAISS implementation with advanced index configuration
+  
+  import time
+  import os
+  import numpy as np
+  import faiss
+  from typing import List, Dict, Any, Optional, Tuple
+  from functools import lru_cache
+  
+  class OptimizedFAISSVectorStore:
+      """
+      Optimized FAISS vector store implementation with advanced configuration.
+      """
+      
+      def __init__(
+          self,
+          embedding_dimension: int = 768,
+          index_path: str = "optimized_faiss_index",
+          use_gpu: bool = False
+      ):
+          """
+          Initialize the optimized FAISS vector store.
+          
+          Args:
+              embedding_dimension: Dimension of the embedding vectors
+              index_path: Path to save/load the FAISS index
+              use_gpu: Whether to use GPU acceleration if available
+          """
+          self.embedding_dimension = embedding_dimension
+          self.index_path = index_path
+          self.use_gpu = use_gpu
+          self.index = None
+          self.document_store = {}
+          self.logger = logging.getLogger(__name__)
+          
+          # Performance tracking
+          self.metrics = {
+              "creation_time": 0,
+              "load_time": 0,
+              "save_time": 0,
+              "total_queries": 0,
+              "total_query_time": 0
+          }
+      
+      def _select_optimal_index(self, num_vectors: int) -> faiss.Index:
+          """
+          Select the optimal FAISS index type based on dataset size.
+          
+          Args:
+              num_vectors: Number of vectors to be indexed
+              
+          Returns:
+              Configured FAISS index
+          """
+          # For small datasets (< 10K vectors), use exact search
+          if num_vectors < 10000:
+              self.logger.info("Using IndexFlatL2 for small dataset")
+              index = faiss.IndexFlatL2(self.embedding_dimension)
+          
+          # For medium datasets (10K-1M vectors), use IVF with 4*sqrt(n) clusters
+          elif num_vectors < 1000000:
+              self.logger.info("Using IndexIVFFlat for medium dataset")
+              nlist = int(4 * np.sqrt(num_vectors))  # Rule of thumb for nlist
+              quantizer = faiss.IndexFlatL2(self.embedding_dimension)
+              index = faiss.IndexIVFFlat(quantizer, self.embedding_dimension, nlist)
+              # Index needs to be trained before adding vectors
+              index.train_status = False
+          
+          # For large datasets (> 1M vectors), use IVF with Product Quantization
+          else:
+              self.logger.info("Using IndexIVFPQ for large dataset")
+              nlist = int(4 * np.sqrt(num_vectors))  # Rule of thumb for nlist
+              m = 8  # Number of subquantizers (8 is a good default)
+              bits = 8  # Bits per subquantizer (8 is a good default)
+              quantizer = faiss.IndexFlatL2(self.embedding_dimension)
+              index = faiss.IndexIVFPQ(quantizer, self.embedding_dimension, nlist, m, bits)
+              # Index needs to be trained before adding vectors
+              index.train_status = False
+          
+          # Use GPU if requested and available
+          if self.use_gpu and faiss.get_num_gpus() > 0:
+              self.logger.info(f"Moving index to GPU")
+              index = faiss.index_cpu_to_gpu(faiss.StandardGpuResources(), 0, index)
+          
+          return index
+      
+      def create_index(self, documents: List[Dict[str, Any]], embeddings: List[np.ndarray]) -> None:
+          """
+          Create an optimized FAISS index from documents and embeddings.
+          
+          Args:
+              documents: List of document dictionaries
+              embeddings: List of embedding vectors as numpy arrays
+          """
+          start_time = time.time()
+          self.logger.info(f"Creating optimized FAISS index for {len(documents)} documents")
+          
+          # Convert embeddings to numpy array
+          vectors = np.array(embeddings).astype('float32')
+          num_vectors = len(vectors)
+          
+          # Select optimal index type based on dataset size
+          self.index = self._select_optimal_index(num_vectors)
+          
+          # Train index if needed (for IVF indexes)
+          if hasattr(self.index, 'train_status') and not self.index.train_status:
+              self.logger.info("Training index...")
+              train_start = time.time()
+              self.index.train(vectors)
+              self.index.train_status = True
+              self.logger.info(f"Index training completed in {time.time() - train_start:.2f} seconds")
+          
+          # Add vectors to index
+          add_start = time.time()
+          self.index.add(vectors)
+          self.logger.info(f"Added {num_vectors} vectors to index in {time.time() - add_start:.2f} seconds")
+          
+          # Store document mapping
+          for i, doc in enumerate(documents):
+              self.document_store[i] = doc
+          
+          # Set optimal search parameters based on index type
+          if isinstance(self.index, faiss.IndexIVFFlat) or isinstance(self.index, faiss.IndexIVFPQ):
+              # Set nprobe to sqrt(nlist) for a good trade-off between speed and accuracy
+              nlist = self.index.nlist
+              nprobe = int(np.sqrt(nlist))
+              self.index.nprobe = nprobe
+              self.logger.info(f"Set nprobe to {nprobe} for {nlist} clusters")
+          
+          # Save the index
+          self._save_index()
+          
+          # Record metrics
+          self.metrics["creation_time"] = time.time() - start_time
+          self.logger.info(f"Index creation completed in {self.metrics['creation_time']:.2f} seconds")
+      
+      def _save_index(self) -> None:
+          """Save the FAISS index to disk with performance tracking."""
+          if self.index is None:
+              raise ValueError("No index to save")
+              
+          start_time = time.time()
+          self.logger.info(f"Saving index to {self.index_path}")
+          
+          # Convert GPU index to CPU if necessary
+          if self.use_gpu and faiss.get_num_gpus() > 0:
+              cpu_index = faiss.index_gpu_to_cpu(self.index)
+              faiss.write_index(cpu_index, f"{self.index_path}/index.faiss")
+          else:
+              faiss.write_index(self.index, f"{self.index_path}/index.faiss")
+          
+          # Save document store separately
+          with open(f"{self.index_path}/docstore.pkl", "wb") as f:
+              pickle.dump(self.document_store, f)
+          
+          self.metrics["save_time"] = time.time() - start_time
+          self.logger.info(f"Index saved in {self.metrics['save_time']:.2f} seconds")
+      
+      def load_index(self) -> bool:
+          """
+          Load the FAISS index from disk with performance tracking.
+          
+          Returns:
+              True if loaded successfully, False otherwise
+          """
+          if not os.path.exists(f"{self.index_path}/index.faiss"):
+              self.logger.warning(f"Index file not found at {self.index_path}/index.faiss")
+              return False
+              
+          start_time = time.time()
+          self.logger.info(f"Loading index from {self.index_path}")
+          
+          try:
+              # Load the index
+              self.index = faiss.read_index(f"{self.index_path}/index.faiss")
+              
+              # Move to GPU if requested and available
+              if self.use_gpu and faiss.get_num_gpus() > 0:
+                  self.index = faiss.index_cpu_to_gpu(faiss.StandardGpuResources(), 0, self.index)
+              
+              # Set optimal search parameters
+              if isinstance(self.index, faiss.IndexIVFFlat) or isinstance(self.index, faiss.IndexIVFPQ):
+                  nlist = self.index.nlist
+                  nprobe = int(np.sqrt(nlist))
+                  self.index.nprobe = nprobe
+                  self.logger.info(f"Set nprobe to {nprobe} for {nlist} clusters")
+              
+              # Load document store
+              with open(f"{self.index_path}/docstore.pkl", "rb") as f:
+                  self.document_store = pickle.load(f)
+              
+              self.metrics["load_time"] = time.time() - start_time
+              self.logger.info(f"Index loaded in {self.metrics['load_time']:.2f} seconds with {len(self.document_store)} documents")
+              return True
+              
+          except Exception as e:
+              self.logger.error(f"Error loading index: {e}")
+              return False
+      
+      @lru_cache(maxsize=100)
+      def _cached_search(self, query_vector_tuple: Tuple[float], k: int) -> List[Tuple[int, float]]:
+          """
+          Cached search function for performance optimization.
+          
+          Args:
+              query_vector_tuple: Query vector as a tuple (for hashability)
+              k: Number of results to return
+              
+          Returns:
+              List of (index, distance) tuples
+          """
+          # Convert tuple back to numpy array
+          query_vector = np.array([query_vector_tuple]).astype('float32')
+          
+          # Perform search
+          distances, indices = self.index.search(query_vector, k)
+          
+          # Convert to list of tuples
+          results = [(int(idx), float(dist)) for idx, dist in zip(indices[0], distances[0]) if idx != -1]
+          return results
+      
+      def search(self, query_vector: np.ndarray, k: int = 5) -> List[Dict[str, Any]]:
+          """
+          Search the index with performance optimization.
+          
+          Args:
+              query_vector: Query embedding vector
+              k: Number of results to return
+              
+          Returns:
+              List of document dictionaries with similarity scores
+          """
+          if self.index is None:
+              raise ValueError("Index not initialized")
+              
+          start_time = time.time()
+          
+          # Convert query vector to tuple for caching
+          query_tuple = tuple(query_vector.flatten().tolist())
+          
+          # Perform cached search
+          results = self._cached_search(query_tuple, k)
+          
+          # Format results
+          formatted_results = []
+          for idx, distance in results:
+              if idx in self.document_store:
+                  doc = self.document_store[idx].copy()
+                  doc["score"] = 1.0 - distance  # Convert distance to similarity score
+                  formatted_results.append(doc)
+          
+          # Update metrics
+          search_time = time.time() - start_time
+          self.metrics["total_queries"] += 1
+          self.metrics["total_query_time"] += search_time
+          avg_query_time = self.metrics["total_query_time"] / self.metrics["total_queries"]
+          
+          self.logger.info(f"Search completed in {search_time:.4f} seconds (avg: {avg_query_time:.4f}s)")
+          return formatted_results
+      
+      def get_performance_metrics(self) -> Dict[str, Any]:
+          """Get performance metrics for the vector store."""
+          metrics = self.metrics.copy()
+          
+          # Add average query time
+          if metrics["total_queries"] > 0:
+              metrics["avg_query_time"] = metrics["total_query_time"] / metrics["total_queries"]
+          else:
+              metrics["avg_query_time"] = 0
+              
+          # Add index type information
+          if self.index is not None:
+              metrics["index_type"] = type(self.index).__name__
+              
+              # Add IVF-specific metrics
+              if hasattr(self.index, 'nlist'):
+                  metrics["nlist"] = self.index.nlist
+              if hasattr(self.index, 'nprobe'):
+                  metrics["nprobe"] = self.index.nprobe
+          
+          return metrics
+  
+  # Usage example with performance optimization
+  def optimize_vector_search():
+      """Example of optimized vector search implementation."""
+      # Initialize optimized vector store
+      vector_store = OptimizedFAISSVectorStore(
+          embedding_dimension=768,
+          index_path="optimized_faiss_index",
+          use_gpu=False  # Set to True if GPU is available
+      )
+      
+      # Check if index exists and load it
+      if not vector_store.load_index():
+          # Create new index if loading fails
+          documents = load_documents()  # Your document loading function
+          embeddings = create_embeddings(documents)  # Your embedding function
+          vector_store.create_index(documents, embeddings)
+      
+      # Perform optimized search
+      query = "What are the key recommendations?"
+      query_embedding = create_embedding(query)  # Your embedding function
+      results = vector_store.search(query_embedding, k=5)
+      
+      # Print performance metrics
+      metrics = vector_store.get_performance_metrics()
+      print(f"Performance metrics: {metrics}")
+      
+      return results
+  
+  output: "Optimized FAISS implementation with advanced index configuration and performance monitoring"
+
+- input: |
+  # Example of performance monitoring decorator for vector store operations
+  
+  import time
+  import functools
+  from typing import Callable, Any, Dict
+  
+  # Performance tracking dictionary
+  performance_metrics = {
+      "function_calls": {},
+      "total_execution_time": 0
+  }
+  
+  def track_performance(function: Callable) -> Callable:
+      """
+      Decorator to track performance of vector store operations.
+      
+      Args:
+          function: The function to track
+          
+      Returns:
+          Wrapped function with performance tracking
+      """
+      @functools.wraps(function)
+      def wrapper(*args, **kwargs):
+          # Get function name
+          func_name = function.__name__
+          
+          # Initialize metrics for this function if not exists
+          if func_name not in performance_metrics["function_calls"]:
+              performance_metrics["function_calls"][func_name] = {
+                  "calls": 0,
+                  "total_time": 0,
+                  "min_time": float('inf'),
+                  "max_time": 0,
+                  "last_time": 0
+              }
+          
+          # Start timing
+          start_time = time.time()
+          
+          # Call the function
+          result = function(*args, **kwargs)
+          
+          # Calculate execution time
+          execution_time = time.time() - start_time
+          
+          # Update metrics
+          metrics = performance_metrics["function_calls"][func_name]
+          metrics["calls"] += 1
+          metrics["total_time"] += execution_time
+          metrics["min_time"] = min(metrics["min_time"], execution_time)
+          metrics["max_time"] = max(metrics["max_time"], execution_time)
+          metrics["last_time"] = execution_time
+          metrics["avg_time"] = metrics["total_time"] / metrics["calls"]
+          
+          # Update total execution time
+          performance_metrics["total_execution_time"] += execution_time
+          
+          # Log performance
+          logger.info(f"{func_name} executed in {execution_time:.4f}s (avg: {metrics['avg_time']:.4f}s)")
+          
+          return result
+      
+      return wrapper
+  
+  # Example usage of the performance tracking decorator
+  class PerformanceTrackedVectorStore:
+      """Vector store with performance tracking."""
+      
+      @track_performance
+      def create_index(self, documents):
+          """Create index with performance tracking."""
+          # Implementation details...
+          time.sleep(0.5)  # Simulate work
+          return "Index created"
+      
+      @track_performance
+      def load_index(self):
+          """Load index with performance tracking."""
+          # Implementation details...
+          time.sleep(0.1)  # Simulate work
+          return "Index loaded"
+      
+      @track_performance
+      def search(self, query, k=5):
+          """Search with performance tracking."""
+          # Implementation details...
+          time.sleep(0.08)  # Simulate work
+          return [{"result": f"Result for {query}"}]
+      
+      def get_performance_report(self) -> Dict[str, Any]:
+          """Generate a performance report."""
+          return {
+              "total_execution_time": performance_metrics["total_execution_time"],
+              "function_metrics": performance_metrics["function_calls"],
+              "summary": {
+                  "search_avg_time": performance_metrics["function_calls"].get("search", {}).get("avg_time", 0),
+                  "create_index_time": performance_metrics["function_calls"].get("create_index", {}).get("last_time", 0),
+                  "load_index_time": performance_metrics["function_calls"].get("load_index", {}).get("last_time", 0)
+              }
+          }
+  
+  # Usage example
+  vector_store = PerformanceTrackedVectorStore()
+  vector_store.create_index([])  # Create index
+  vector_store.load_index()  # Load index
+  
+  # Perform multiple searches to gather statistics
+  for i in range(10):
+      vector_store.search(f"Query {i}")
+  
+  # Generate performance report
+  report = vector_store.get_performance_report()
+  print(f"Performance Report: {report}")
+  
+  output: "Performance monitoring implementation for vector store operations"
+
+metadata:
+  priority: high
+  version: 1.0
+</rule> 

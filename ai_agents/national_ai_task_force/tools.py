@@ -6,6 +6,7 @@ the National AI Task Force PDF document.
 """
 
 import logging
+import time
 from typing import List, Dict, Any
 
 from langchain_core.tools import tool
@@ -33,9 +34,14 @@ def get_vector_store() -> NationalAITaskForceVectorStore:
     
     if _vector_store is None:
         logger.info("Initializing vector store for the first time")
-        _vector_store = NationalAITaskForceVectorStore()
-        _vector_store.create_vector_store()
-        logger.info(f"Vector store initialized with {_vector_store.get_document_count()} documents")
+        try:
+            start_time = time.time()
+            _vector_store = NationalAITaskForceVectorStore()
+            init_time = time.time() - start_time
+            logger.info(f"Vector store initialized in {init_time:.2f} seconds with {_vector_store.get_document_count()} documents")
+        except Exception as e:
+            logger.error(f"Error initializing vector store: {e}")
+            raise RuntimeError(f"Failed to initialize vector store: {e}")
     
     return _vector_store
 
@@ -58,10 +64,12 @@ def search_national_ai_task_force(query: str, k: int = 5) -> List[Dict[str, Any]
         vector_store = get_vector_store()
         
         # Search for documents
+        start_time = time.time()
         logger.info(f"Searching vector store for: '{query}'")
         results = vector_store.search(query, k=k)
+        search_time = time.time() - start_time
         
-        logger.info(f"Found {len(results)} results for query: '{query}'")
+        logger.info(f"Found {len(results)} results for query: '{query}' in {search_time:.4f} seconds")
         return results
     
     except FileNotFoundError as e:

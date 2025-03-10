@@ -1,19 +1,21 @@
 """
 Vector Search over National AI Task Force PDF Document
 
-This script creates an in-memory vector store from the National AI Task Force PDF document
+This script creates a FAISS vector store from the National AI Task Force PDF document
 and provides functionality to search through it using semantic similarity.
+The vector store is saved locally for reuse in future sessions.
 """
 
 import os
 import logging
 from typing import List, Dict, Any
+import time
 
 # LangChain imports for document loading and processing
 from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_core.vectorstores import InMemoryVectorStore
+from langchain_community.vectorstores import FAISS
 from langchain.schema import Document
 
 # Set up logging
@@ -27,11 +29,12 @@ logger = logging.getLogger(__name__)
 PDF_PATH = os.path.join("docs", "National-Artificial-Intelligence-Task-Force-Policy-Recommendations-Final-1.pdf")
 CHUNK_SIZE = 1000
 CHUNK_OVERLAP = 200
-EMBEDDING_MODEL = "sentence-transformers/all-mpnet-base-v2"
+EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+FAISS_INDEX_PATH = "national_ai_task_force_faiss"
 
 class NationalAITaskForceVectorStore:
     """
-    A class to handle the creation and querying of an in-memory vector store
+    A class to handle the creation, saving, loading, and querying of a FAISS vector store
     from the National AI Task Force PDF document.
     """
     
@@ -50,8 +53,54 @@ class NationalAITaskForceVectorStore:
         logger.info(f"Loading HuggingFace embedding model: {embedding_model}")
         self.embeddings = HuggingFaceEmbeddings(model_name=embedding_model)
         
-        # Initialize in-memory vector store
+        # Initialize vector store
         self.vector_store = None
+        
+        # Try to load existing vector store or create a new one
+        self._load_or_create_vector_store()
+    
+    def _load_or_create_vector_store(self) -> None:
+        """
+        Try to load an existing FAISS vector store, or create a new one if it doesn't exist.
+        """
+        try:
+            if os.path.exists(FAISS_INDEX_PATH):
+                logger.info(f"Found existing FAISS index at {FAISS_INDEX_PATH}")
+                start_time = time.time()
+                self._load_vector_store()
+                load_time = time.time() - start_time
+                logger.info(f"Loaded existing vector store in {load_time:.2f} seconds")
+            else:
+                logger.info("No existing FAISS index found, creating new vector store")
+                start_time = time.time()
+                self.create_vector_store()
+                create_time = time.time() - start_time
+                logger.info(f"Created and saved new vector store in {create_time:.2f} seconds")
+        except Exception as e:
+            logger.error(f"Error in _load_or_create_vector_store: {e}")
+            logger.info("Falling back to creating a new vector store")
+            try:
+                self.create_vector_store()
+            except Exception as inner_e:
+                logger.error(f"Critical error creating vector store: {inner_e}")
+                raise RuntimeError(f"Failed to initialize vector store: {inner_e}") from inner_e
+    
+    def _load_vector_store(self) -> None:
+        """
+        Load the FAISS vector store from disk.
+        """
+        try:
+            logger.info(f"Loading FAISS index from {FAISS_INDEX_PATH}")
+            self.vector_store = FAISS.load_local(
+                FAISS_INDEX_PATH, 
+                self.embeddings,
+                allow_dangerous_deserialization=True
+            )
+            doc_count = self.get_document_count()
+            logger.info(f"Successfully loaded FAISS index with {doc_count} documents")
+        except Exception as e:
+            logger.error(f"Error loading FAISS index: {e}")
+            raise
     
     def load_and_split_document(self) -> List[Document]:
         """
@@ -81,22 +130,32 @@ class NationalAITaskForceVectorStore:
     
     def create_vector_store(self) -> None:
         """
-        Create an in-memory vector store from the document chunks.
+        Create a FAISS vector store from the document chunks and save it to disk.
         """
-        # Load and split document
-        chunks = self.load_and_split_document()
-        
-        # Create in-memory vector store
-        logger.info("Creating in-memory vector store...")
-        self.vector_store = InMemoryVectorStore(embedding=self.embeddings)
-        
-        # Add documents to vector store
-        logger.info(f"Adding {len(chunks)} document chunks to vector store")
-        self.vector_store.add_documents(chunks)
-        
-        logger.info("In-memory vector store created successfully")
+        try:
+            # Load and split document
+            chunks = self.load_and_split_document()
+            
+            # Create FAISS vector store
+            logger.info("Creating FAISS vector store...")
+            start_time = time.time()
+            self.vector_store = FAISS.from_documents(chunks, self.embeddings)
+            create_time = time.time() - start_time
+            logger.info(f"Created FAISS vector store in {create_time:.2f} seconds")
+            
+            # Save the vector store
+            logger.info(f"Saving FAISS index to {FAISS_INDEX_PATH}")
+            save_start_time = time.time()
+            self.vector_store.save_local(FAISS_INDEX_PATH)
+            save_time = time.time() - save_start_time
+            logger.info(f"Saved FAISS index in {save_time:.2f} seconds")
+            
+            logger.info("FAISS vector store created and saved successfully")
+        except Exception as e:
+            logger.error(f"Error creating FAISS vector store: {e}")
+            raise
     
-    def search(self, query: str, k: int = 5) -> List[Dict[str, Any]]:
+    def search(self, query: str, k: int = 10) -> List[Dict[str, Any]]:
         """
         Search the vector store for documents similar to the query.
         
@@ -108,14 +167,21 @@ class NationalAITaskForceVectorStore:
             List of documents with their similarity scores
         """
         if self.vector_store is None:
-            logger.info("Vector store not initialized, creating now...")
-            self.create_vector_store()
+            logger.warning("Vector store not initialized, attempting to load or create...")
+            self._load_or_create_vector_store()
+            
+            if self.vector_store is None:
+                logger.error("Failed to initialize vector store")
+                return [{"error": "Vector store initialization failed"}]
         
         logger.info(f"Searching for: '{query}' with k={k}")
         
         try:
             # Search for similar documents
+            start_time = time.time()
             results = self.vector_store.similarity_search_with_score(query, k=k)
+            search_time = time.time() - start_time
+            logger.info(f"Search completed in {search_time:.4f} seconds")
             
             # Format results
             formatted_results = []
@@ -133,7 +199,10 @@ class NationalAITaskForceVectorStore:
             # Try alternative search method if the first one fails
             try:
                 logger.info("Trying alternative search method")
+                start_time = time.time()
                 results = self.vector_store.similarity_search(query, k=k)
+                search_time = time.time() - start_time
+                logger.info(f"Alternative search completed in {search_time:.4f} seconds")
                 
                 # Format results without scores
                 formatted_results = []
@@ -148,7 +217,7 @@ class NationalAITaskForceVectorStore:
                 return formatted_results
             except Exception as inner_e:
                 logger.error(f"Error in alternative search: {inner_e}")
-                raise
+                return [{"error": f"Search failed: {str(inner_e)}"}]
     
     def get_document_count(self) -> int:
         """
@@ -158,26 +227,21 @@ class NationalAITaskForceVectorStore:
             Number of documents
         """
         if self.vector_store is None:
-            logger.info("Vector store not initialized, creating now...")
-            self.create_vector_store()
+            logger.warning("Vector store not initialized, attempting to load or create...")
+            self._load_or_create_vector_store()
+            
+            if self.vector_store is None:
+                logger.error("Failed to initialize vector store")
+                return -1
         
-        # The newer version of InMemoryVectorStore doesn't have a docstore attribute
-        # Instead, we can use the vector store's internal collection
         try:
-            # First try the newer API
+            # For FAISS, we can use the index_to_docstore_id dictionary to get the count
             count = len(self.vector_store.index_to_docstore_id)
             logger.info(f"Vector store contains {count} documents")
             return count
-        except AttributeError:
-            try:
-                # Fall back to the older API
-                count = len(self.vector_store.docstore._dict)
-                logger.info(f"Vector store contains {count} documents")
-                return count
-            except AttributeError:
-                # If both fail, return -1 to indicate unknown count
-                logger.warning("Could not determine document count in vector store")
-                return -1
+        except AttributeError as e:
+            logger.error(f"Error getting document count: {e}")
+            return -1
 
 
 def main():
@@ -186,22 +250,28 @@ def main():
     """
     # Create vector store
     logger.info("Initializing National AI Task Force Vector Store")
-    vector_store = NationalAITaskForceVectorStore()
-    vector_store.create_vector_store()
-    
-    # Example search
-    query = "What are the key policy recommendations for AI governance in Jamaica?"
-    logger.info(f"Performing example search: '{query}'")
-    results = vector_store.search(query)
-    
-    print(f"\nSearch results for query: '{query}'")
-    print(f"Found {len(results)} results\n")
-    
-    for i, result in enumerate(results):
-        print(f"Result {i+1} (Score: {result['score']:.4f}):")
-        print(f"Page: {result['metadata'].get('page', 'Unknown')}")
-        print(f"Content: {result['content'][:200]}...\n")
-
+    try:
+        vector_store = NationalAITaskForceVectorStore()
+        
+        # Example search
+        query = "Who is on the task force team?"
+        logger.info(f"Performing example search: '{query}'")
+        results = vector_store.search(query)
+        
+        print(f"\nSearch results for query: '{query}'")
+        print(f"Found {len(results)} results\n")
+        
+        for i, result in enumerate(results):
+            if "error" in result:
+                print(f"Error: {result['error']}")
+                continue
+                
+            print(f"Result {i+1} (Score: {result['score']:.4f}):")
+            print(f"Page: {result['metadata'].get('page', 'Unknown')}")
+            print(f"Content: {result['content'][:200]}...\n")
+    except Exception as e:
+        logger.error(f"Error in main function: {e}")
+        print(f"Error: {str(e)}")
 
 if __name__ == "__main__":
     main()
