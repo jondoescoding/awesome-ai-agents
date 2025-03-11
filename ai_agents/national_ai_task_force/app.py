@@ -4,8 +4,6 @@ Streamlit application for the National AI Task Force Agent
 This module provides a web interface for interacting with the 
 National AI Task Force Agent using Streamlit.
 """
-
-import os
 import logging
 import streamlit as st
 import uuid  # This is the built-in uuid module, we don't need uuid6
@@ -203,7 +201,7 @@ with st.sidebar:
     <a href="https://twitter.com/jondoescoding" target="_blank">
     <img src="https://cdn-icons-png.flaticon.com/512/733/733579.png" width="20"/> Twitter
     </a>
-    <a href="https://nightshadeai.vercel.app/" target="_blank">
+    <a href="https://nightshadeai.xyz/" target="_blank">
     <img src="https://cdn-icons-png.flaticon.com/512/1006/1006771.png" width="20"/> Website
     </a>
     </div>
