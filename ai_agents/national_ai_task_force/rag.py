@@ -150,8 +150,14 @@ class NationalAITaskForceVectorStore:
             The number of documents
         """
         try:
-            # Get document count from AstraDB
-            count = self.vector_store.collection_count()
+            # Use similarity_search with an empty query and high limit
+            # This will return all documents up to the limit
+            results = self.vector_store.similarity_search(
+                query="",  # Empty query that should match all documents
+                k=10  # Large enough for most collections
+            )
+            count = len(results)
+            logger.info(f"Collection has {count} documents")
             return count
         except Exception as e:
             logger.error(f"Error getting document count: {e}")
