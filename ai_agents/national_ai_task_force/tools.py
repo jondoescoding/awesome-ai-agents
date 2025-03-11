@@ -2,7 +2,7 @@
 Tools for the National AI Task Force Agent
 
 This module contains tools that can be used by an agent to interact with
-the National AI Task Force PDF document.
+the National AI Task Force information stored in AstraDB.
 """
 
 import logging
@@ -20,7 +20,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Initialize the vector store as a global variable to avoid reloading
-# the PDF document for each tool call
+# for each tool call
 _vector_store = None
 
 def get_vector_store() -> NationalAITaskForceVectorStore:
@@ -48,10 +48,10 @@ def get_vector_store() -> NationalAITaskForceVectorStore:
 @tool
 def search_national_ai_task_force(query: str, k: int = 5) -> List[Dict[str, Any]]:
     """
-    Search the National AI Task Force PDF document for information related to the query.
+    Search the National AI Task Force information for content related to the query.
     
     Args:
-        query: The search query to find relevant information in the document
+        query: The search query to find relevant information
         k: Number of results to return (default: 5)
         
     Returns:
@@ -72,10 +72,6 @@ def search_national_ai_task_force(query: str, k: int = 5) -> List[Dict[str, Any]
         logger.info(f"Found {len(results)} results for query: '{query}' in {search_time:.4f} seconds")
         return results
     
-    except FileNotFoundError as e:
-        logger.error(f"PDF document not found: {e}")
-        return [{"error": f"PDF document not found: {e}"}]
-    
     except Exception as e:
-        logger.error(f"Error searching National AI Task Force document: {e}")
-        return [{"error": f"Error searching National AI Task Force document: {e}"}]
+        logger.error(f"Error searching National AI Task Force information: {e}")
+        return [{"error": f"Error searching National AI Task Force information: {e}"}]

@@ -1,11 +1,11 @@
 # National AI Task Force Agent
 
-This project provides a conversational AI agent that can search and analyze information from the National AI Task Force PDF document using LangGraph's ReAct agent architecture with GROQ models.
+This project provides a conversational AI agent that can search and analyze information from the National AI Task Force using LangGraph's ReAct agent architecture with GROQ models.
 
 ## Features
 
 - **Conversational AI Agent**: Uses LangGraph's ReAct architecture with GROQ models
-- **Semantic Search**: Searches the National AI Task Force document using vector embeddings
+- **Semantic Search**: Searches the National AI Task Force information using vector embeddings in AstraDB
 - **Conversation Memory**: Maintains context across multiple interactions
 - **Streamlit Web Interface**: Provides a user-friendly interface for interacting with the agent
 - **Error Handling**: Comprehensive error handling for robustness
@@ -17,9 +17,12 @@ This project provides a conversational AI agent that can search and analyze info
    ```
    pip install -r requirements.txt
    ```
-3. Create a `.env` file with your GROQ API key (see `.env.example` for reference)
+3. Create a `.env` file with your API keys (see `.env.example` for reference)
    ```
    GROQ_API_KEY=your_groq_api_key_here
+   ASTRADB_TOKEN=your_astradb_application_token_here
+   ASTRADB_ENDPOINT=your_astradb_api_endpoint_here
+   ASTRADB_COLLECTION_NAME=national_ai_task_force
    ```
 
 ## Usage
@@ -78,20 +81,26 @@ for result in results:
 
 ## Architecture
 
-The project uses the following architecture:
+The project consists of the following components:
 
-1. **Vector Store**: An in-memory vector store created from the National AI Task Force PDF document
-   - Uses "sentence-transformers/all-mpnet-base-v2" model for embeddings
-   - Splits the document into chunks for better search results
+1. **Vector Store (`rag.py`)**: 
+   - Cloud-based AstraDB vector store containing National AI Task Force information
+   - Uses HuggingFace embeddings for semantic search
+   - Handles document retrieval with similarity search
 
-2. **LangGraph ReAct Agent**: A conversational agent that can search and analyze information
-   - Uses GROQ models for natural language understanding
-   - Uses the prebuilt ReAct agent from LangGraph for tool interaction
-   - Maintains conversation memory across interactions
+2. **Agent Implementation (`agent.py`)**:
+   - Implements LangGraph ReAct agent architecture
+   - Uses GROQ's LLaMA model for natural language understanding
+   - Manages conversation memory and thread-based state
 
-3. **Streamlit Web Interface**: A user-friendly interface for interacting with the agent
-   - Chat interface for conversations
-   - Automatic model switching without requiring a button click
+3. **Search Tools (`tools.py`)**:
+   - Provides the search functionality that connects the agent to the vector store
+   - Implements singleton pattern for vector store efficiency
+
+4. **Web Interface (`app.py`)**:
+   - Streamlit-based chat interface for user interactions
+   - Manages session state and conversation history
+   - Provides configuration options for model selection
 
 ## Customization
 

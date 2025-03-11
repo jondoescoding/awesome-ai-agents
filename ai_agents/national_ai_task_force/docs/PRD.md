@@ -3,7 +3,7 @@
 ## 1. Product Overview
 
 ### 1.1 Introduction
-The National AI Task Force Agent is a conversational AI assistant designed to provide information and analysis based on the National AI Task Force PDF document. This agent leverages state-of-the-art language models and semantic search capabilities to help users find relevant information, extract insights, and understand the policy recommendations within the document.
+The National AI Task Force Agent is a conversational AI assistant designed to provide information and analysis based on the National AI Task Force information. This agent leverages state-of-the-art language models and semantic search capabilities to help users find relevant information, extract insights, and understand the policy recommendations.
 
 ### 1.2 Problem Statement
 Policy documents like the National AI Task Force recommendations are comprehensive but often difficult to navigate and extract specific information from. Users need a way to quickly access relevant information without reading the entire document, while ensuring the information is accurate and contextually appropriate.
@@ -34,9 +34,8 @@ Policy documents like the National AI Task Force recommendations are comprehensi
 - **Conversation Memory**: Maintain context across multiple interactions for coherent conversation flow
 
 #### 2.1.2 Semantic Search Capability
-- **Vector Store Creation**: Create an in-memory vector store from the National AI Task Force PDF document
-- **Document Chunking**: Split the document into appropriate chunks for effective retrieval
-- **Semantic Embedding**: Generate embeddings using a high-quality model (sentence-transformers/all-mpnet-base-v2)
+- **Vector Store Integration**: Connect to AstraDB vector store containing National AI Task Force information
+- **Semantic Embedding**: Generate embeddings using a high-quality model for queries
 - **Similarity Search**: Find the most relevant document sections based on semantic similarity to the query
 - **Result Ranking**: Rank search results based on relevance scores to present the most pertinent information
 
