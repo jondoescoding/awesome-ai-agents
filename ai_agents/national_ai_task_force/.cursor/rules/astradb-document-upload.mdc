@@ -1,0 +1,245 @@
+---
+description: Standards for uploading documents to AstraDB vector stores in the National AI Task Force project
+globs: *.py
+alwaysApply: false
+---
+# AstraDB Document Upload Standards
+
+<rule>
+
+filters:
+  # Match Python files
+  - type: file_extension
+    pattern: "\\.py$"
+  # Match files that use AstraDB
+  - type: content
+    pattern: "(?s)(AstraDB|vector_?store|add_documents|from_documents)"
+
+actions:
+- type: suggest
+  message: |
+  ## AstraDB Document Upload Standards
+  
+  The National AI Task Force project uses the following standards for uploading documents to AstraDB:
+  
+  1. **Document Processing**:
+     - Use `PyMuPDF4LLMLoader` for loading PDF documents by page
+     - Use `RecursiveCharacterTextSplitter` for document splitting
+     - Chunk size: 1000 characters
+     - Chunk overlap: 200 characters
+     - Include page numbers and section information in metadata
+  
+  2. **Upload Methods**:
+     - **For New Collections**: Use `AstraDBVectorStore.from_documents()`
+     - **For Existing Collections**: Use `vector_store.add_documents()`
+     - Always verify document count after upload
+     - Always provide unique IDs (UUIDs) for each document
+  
+  3. **Error Handling**:
+     - Implement comprehensive error handling for all upload operations
+     - Log detailed error information for debugging
+     - Verify successful upload with document count checks
+  
+  4. **Performance Considerations**:
+     - Batch uploads for large document sets (500-1000 chunks per batch)
+     - Monitor and log upload times for performance tracking
+     - Implement progress tracking for long-running uploads
+  
+  5. **Security Best Practices**:
+     - Store API keys and tokens in environment variables
+     - Never hardcode credentials in the code
+     - Use proper authentication methods
+  
+  ## Implementation Guidelines
+  
+  When uploading documents to AstraDB:
+  
+  1. **Document Preparation**:
+     - Ensure documents are properly chunked with appropriate metadata
+     - Include source information in metadata (page numbers, sections, etc.)
+     - Validate document format before upload
+  
+  2. **Upload Process**:
+     - Check if collection exists before upload
+     - For empty collections, use `from_documents()` method
+     - For existing collections, use `add_documents()` method
+     - Always provide unique IDs for each document using UUIDs
+     - Implement proper error handling and logging
+  
+  3. **Verification**:
+     - Always verify document count after upload
+     - Perform test searches to validate uploaded content
+     - Log detailed information about the upload process
+
+examples:
+- input: |
+  # Example of uploading documents to AstraDB
+  
+  def upload_documents_to_astradb(
+      documents: List[Document],
+      collection_name: str = "national_ai_task_force",
+      embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
+  ) -> AstraDBVectorStore:
+      """
+      Upload documents to AstraDB vector store.
+      
+      Args:
+          documents: List of documents to upload
+          collection_name: Name of the AstraDB collection
+          embedding_model: Name of the embedding model to use
+          
+      Returns:
+          AstraDB vector store instance
+      """
+      logger.info(f"Uploading {len(documents)} documents to AstraDB collection: {collection_name}")
+      
+      # Initialize embeddings
+      embeddings = HuggingFaceEmbeddings(model_name=embedding_model)
+      
+      try:
+          # Connect to AstraDB
+          vector_store = AstraDBVectorStore(
+              embedding=embeddings,
+              collection_name=collection_name,
+              api_endpoint=os.getenv("ASTRADB_ENDPOINT"),
+              token=os.getenv("ASTRADB_TOKEN")
+          )
+          
+          # Check if collection has documents
+          doc_count = vector_store.collection_count()
+          logger.info(f"Collection has {doc_count} documents before upload")
+          
+          # Generate UUIDs for each document
+          doc_ids = [str(uuid.uuid4()) for _ in range(len(documents))]
+          logger.info(f"Generated {len(doc_ids)} UUIDs for documents")
+          
+          # Upload documents
+          start_time = time.time()
+          
+          if doc_count == 0:
+              # For empty collections, use from_documents
+              logger.info("Collection is empty, creating new vector store from documents")
+              vector_store = AstraDBVectorStore.from_documents(
+                  documents=documents,
+                  embedding=embeddings,
+                  collection_name=collection_name,
+                  api_endpoint=os.getenv("ASTRADB_ENDPOINT"),
+                  token=os.getenv("ASTRADB_TOKEN"),
+                  ids=doc_ids
+              )
+          else:
+              # For existing collections, use add_documents
+              logger.info(f"Adding documents to existing collection with {doc_count} documents")
+              vector_store.add_documents(documents=documents, ids=doc_ids)
+          
+          upload_time = time.time() - start_time
+          logger.info(f"Upload completed in {upload_time:.2f} seconds")
+          
+          # Verify upload
+          new_doc_count = vector_store.collection_count()
+          logger.info(f"Collection has {new_doc_count} documents after upload")
+          
+          # Perform test search
+          test_query = "test query"
+          logger.info(f"Performing test search: '{test_query}'")
+          results = vector_store.similarity_search(test_query, k=1)
+          logger.info(f"Test search returned {len(results)} results")
+          
+          return vector_store
+          
+      except Exception as e:
+          logger.error(f"Error uploading documents to AstraDB: {e}")
+          logger.error(f"Exception type: {type(e).__name__}")
+          logger.error(f"Exception traceback: {traceback.format_exc()}")
+          raise
+  
+  output: "Correctly implemented document upload to AstraDB with verification"
+
+- input: |
+  # Example of batch uploading large document sets to AstraDB
+  
+  def batch_upload_to_astradb(
+      documents: List[Document],
+      batch_size: int = 500,
+      collection_name: str = "national_ai_task_force",
+      embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
+  ) -> AstraDBVectorStore:
+      """
+      Upload documents to AstraDB in batches for better performance.
+      
+      Args:
+          documents: List of documents to upload
+          batch_size: Number of documents per batch
+          collection_name: Name of the AstraDB collection
+          embedding_model: Name of the embedding model to use
+          
+      Returns:
+          AstraDB vector store instance
+      """
+      logger.info(f"Batch uploading {len(documents)} documents to AstraDB collection: {collection_name}")
+      logger.info(f"Using batch size: {batch_size}")
+      
+      # Initialize embeddings
+      embeddings = HuggingFaceEmbeddings(model_name=embedding_model)
+      
+      try:
+          # Connect to AstraDB
+          vector_store = AstraDBVectorStore(
+              embedding=embeddings,
+              collection_name=collection_name,
+              api_endpoint=os.getenv("ASTRADB_ENDPOINT"),
+              token=os.getenv("ASTRADB_TOKEN")
+          )
+          
+          # Check if collection has documents
+          initial_doc_count = vector_store.collection_count()
+          logger.info(f"Collection has {initial_doc_count} documents before upload")
+          
+          # Create batches
+          total_docs = len(documents)
+          batches = [documents[i:i + batch_size] for i in range(0, total_docs, batch_size)]
+          logger.info(f"Created {len(batches)} batches of {batch_size} documents each")
+          
+          # Upload batches
+          total_uploaded = 0
+          start_time = time.time()
+          
+          for i, batch in enumerate(batches):
+              batch_start_time = time.time()
+              logger.info(f"Uploading batch {i+1}/{len(batches)} with {len(batch)} documents")
+              
+              # Generate UUIDs for this batch
+              batch_ids = [str(uuid.uuid4()) for _ in range(len(batch))]
+              
+              # Upload batch
+              vector_store.add_documents(documents=batch, ids=batch_ids)
+              
+              # Update progress
+              total_uploaded += len(batch)
+              batch_time = time.time() - batch_start_time
+              logger.info(f"Batch {i+1} uploaded in {batch_time:.2f} seconds")
+              logger.info(f"Progress: {total_uploaded}/{total_docs} documents ({total_uploaded/total_docs*100:.1f}%)")
+          
+          total_time = time.time() - start_time
+          logger.info(f"All batches uploaded in {total_time:.2f} seconds")
+          
+          # Verify upload
+          final_doc_count = vector_store.collection_count()
+          new_docs_added = final_doc_count - initial_doc_count
+          logger.info(f"Collection has {final_doc_count} documents after upload")
+          logger.info(f"Added {new_docs_added} new documents")
+          
+          return vector_store
+          
+      except Exception as e:
+          logger.error(f"Error batch uploading documents to AstraDB: {e}")
+          logger.error(f"Exception type: {type(e).__name__}")
+          logger.error(f"Exception traceback: {traceback.format_exc()}")
+          raise
+  
+  output: "Correctly implemented batch upload to AstraDB with progress tracking"
+
+metadata:
+  priority: high
+  version: 1.0
+</rule> 

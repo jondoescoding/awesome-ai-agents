@@ -1,13 +1,18 @@
 ---
-description: Standards for FAISS vector stores and embedding models in the National AI Task Force project
+description: Standards for AstraDB vector stores and embedding models in the National AI Task Force project
 globs: *.py
 alwaysApply: false
 ---
-# FAISS Vector Store and Embedding Models
+---
+description: Standards for AstraDB vector stores and embedding models in the National AI Task Force project
+globs: *.py
+alwaysApply: false
+---
+# AstraDB Vector Store and Embedding Models
 
 <rule>
 name: vector_store_embeddings
-description: Standards for implementing and using FAISS vector stores and embedding models in the project
+description: Standards for implementing and using AstraDB vector stores and embedding models in the project
 
 filters:
   # Match Python files
@@ -15,7 +20,7 @@ filters:
     pattern: "\\.py$"
   # Match files that use vector stores or embeddings
   - type: content
-    pattern: "(?s)(vector_?store|embedding|FAISS|HuggingFaceEmbeddings)"
+    pattern: "(?s)(vector_?store|embedding|AstraDB|HuggingFaceEmbeddings)"
 
 actions:
 - type: suggest
@@ -24,58 +29,59 @@ actions:
   
   The National AI Task Force project uses the following vector store standards:
   
-  1. **Primary Vector Store**: `FAISS` from LangChain Community
-     - High-performance vector similarity search library
-     - Persistent storage with save/load functionality
+  1. **Primary Vector Store**: `AstraDBVectorStore` from LangChain AstraDB
+     - Cloud-based vector database with high scalability
+     - Persistent storage in the cloud
      - Optimized for fast retrieval operations
-     - Average query time: ~0.08-0.10 seconds for typical queries
+     - Average query time: ~0.1-0.2 seconds for typical queries
   
   2. **Document Processing**:
      - Chunk size: 1000 characters
      - Chunk overlap: 200 characters
      - Use `RecursiveCharacterTextSplitter` for document splitting
+     - Use `PyMuPDF4LLMLoader` for loading PDF documents by page
      - Typical processing time: ~20-25 seconds for initial creation
   
   3. **Storage Configuration**:
-     - Index path: `national_ai_task_force_faiss` in project root
-     - Load time: ~0.05 seconds for existing index
-     - Save time: ~0.01 seconds after creation
+     - AstraDB Collection: `national_ai_task_force`
+     - Connection via API endpoint and application token
+     - Environment variables: `ASTRADB_ENDPOINT`, `ASTRADB_TOKEN`, `ASTRADB_COLLECTION_NAME`
   
   ## Embedding Models
   
   The project uses the following embedding models:
   
-  1. **Primary Embedding Model**: `sentence-transformers/all-mpnet-base-v2`
+  1. **Primary Embedding Model**: `sentence-transformers/all-MiniLM-L6-v2`
      - High-quality general-purpose embeddings
-     - 768-dimensional vectors
      - Used via `HuggingFaceEmbeddings` from LangChain
      - Loading time: ~4-5 seconds on first initialization
   
   ## Performance Metrics
   
-  The FAISS implementation provides significant performance improvements:
+  The AstraDB implementation provides significant performance improvements:
   
   1. **Query Performance**:
-     - Average search time: 0.08-0.10 seconds
+     - Average search time: 0.1-0.2 seconds
      - Consistent performance regardless of vector store size
-     - 10-20x faster than naive similarity search methods
-  
-  2. **Memory Efficiency**:
-     - Reduced memory footprint compared to in-memory solutions
-     - Efficient index structure for large document collections
      - Scales well with increasing document count
+  
+  2. **Cloud Benefits**:
+     - No local storage requirements
+     - Automatic scaling and management
+     - Accessible from anywhere
+     - No need to manage index files
   
   3. **Persistence Benefits**:
      - One-time creation cost (~20-25 seconds)
-     - Fast loading of pre-built index (~0.05 seconds)
-     - 400-500x speedup for subsequent application starts
+     - Persistent storage in the cloud
+     - No need to rebuild on application restart
   
   ## Implementation Guidelines
   
-  When working with FAISS vector stores and embeddings:
+  When working with AstraDB vector stores and embeddings:
   
   1. **Initialization Pattern**:
-     - Always check for existing index before creating a new one
+     - Always check for existing collection before creating a new one
      - Use try/except blocks for robust error handling
      - Implement performance timing for operations
      - Log detailed information about each step
@@ -90,55 +96,60 @@ actions:
      - Implement fallback mechanisms for critical failures
      - Log detailed error information for debugging
   
-  4. **Optimization Techniques**:
-     - Use appropriate FAISS index types for your use case
-     - Consider batch processing for large document sets
-     - Monitor and log performance metrics
+  4. **Security Considerations**:
+     - Store API keys and tokens in environment variables
+     - Never hardcode credentials in the code
+     - Use proper authentication methods
 
 examples:
 - input: |
-  # Example of correct FAISS vector store implementation
+  # Example of correct AstraDB vector store implementation
   
   import time
   import os
   from langchain_huggingface import HuggingFaceEmbeddings
-  from langchain_community.vectorstores import FAISS
+  from langchain_astradb import AstraDBVectorStore
   from langchain.schema import Document
   
   # Constants
   CHUNK_SIZE = 1000
   CHUNK_OVERLAP = 200
-  EMBEDDING_MODEL = "sentence-transformers/all-mpnet-base-v2"
-  FAISS_INDEX_PATH = "national_ai_task_force_faiss"
+  EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+  
+  # AstraDB Configuration
+  ASTRA_DB_API_ENDPOINT = os.getenv("ASTRADB_ENDPOINT")
+  ASTRA_DB_APPLICATION_TOKEN = os.getenv("ASTRADB_TOKEN")
+  ASTRA_DB_COLLECTION_NAME = os.getenv("ASTRADB_COLLECTION_NAME", "national_ai_task_force")
   
   # Initialize embeddings
   embeddings = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL)
   
-  # Check for existing index or create new one
-  if os.path.exists(FAISS_INDEX_PATH):
-      # Load existing index
+  # Check if the collection already exists
+  if ASTRA_DB_COLLECTION_NAME in AstraDBVectorStore.list_collections():
+      # Connect to existing collection
       start_time = time.time()
-      vector_store = FAISS.load_local(
-          FAISS_INDEX_PATH,
-          embeddings,
-          allow_dangerous_deserialization=True
+      vector_store = AstraDBVectorStore(
+          api_endpoint=ASTRA_DB_API_ENDPOINT,
+          application_token=ASTRA_DB_APPLICATION_TOKEN,
+          collection_name=ASTRA_DB_COLLECTION_NAME,
+          embedding=embeddings
       )
-      load_time = time.time() - start_time
-      print(f"Loaded existing index in {load_time:.4f} seconds")
+      connect_time = time.time() - start_time
+      print(f"Connected to existing collection in {connect_time:.4f} seconds")
   else:
-      # Create new index
+      # Create new collection
       start_time = time.time()
       documents = load_documents()  # Your document loading function
-      vector_store = FAISS.from_documents(documents, embeddings)
+      vector_store = AstraDBVectorStore.from_documents(
+          documents=documents,
+          embedding=embeddings,
+          api_endpoint=ASTRA_DB_API_ENDPOINT,
+          application_token=ASTRA_DB_APPLICATION_TOKEN,
+          collection_name=ASTRA_DB_COLLECTION_NAME,
+          namespace=""
+      )
       create_time = time.time() - start_time
-      
-      # Save the index
-      save_start = time.time()
-      vector_store.save_local(FAISS_INDEX_PATH)
-      save_time = time.time() - save_start
-      
-      print(f"Created index in {create_time:.4f} seconds")
-      print(f"Saved index in {save_time:.4f} seconds")
+      print(f"Created collection in {create_time:.4f} seconds")
   
   # Perform optimized search
   query = "What are the key recommendations?"
@@ -147,14 +158,14 @@ examples:
   search_time = time.time() - search_start
   print(f"Search completed in {search_time:.4f} seconds")
   
-  output: "Correctly implemented FAISS vector store with performance monitoring"
+  output: "Correctly implemented AstraDB vector store with performance monitoring"
 
 - input: |
-  # Example of singleton pattern for FAISS vector store
+  # Example of singleton pattern for AstraDB vector store
   
   class VectorStoreManager:
       """
-      Singleton manager for FAISS vector store to ensure
+      Singleton manager for AstraDB vector store to ensure
       it's only initialized once across the application.
       """
       _instance = None
@@ -167,38 +178,37 @@ examples:
           return cls._instance
       
       def _initialize_vector_store(self):
-          """Initialize the FAISS vector store with proper error handling."""
+          """Initialize the AstraDB vector store with proper error handling."""
           try:
               # Initialize embeddings
               self.embeddings = HuggingFaceEmbeddings(
                   model_name=EMBEDDING_MODEL
               )
               
-              # Check for existing index
-              if os.path.exists(FAISS_INDEX_PATH):
-                  start_time = time.time()
-                  self._vector_store = FAISS.load_local(
-                      FAISS_INDEX_PATH,
-                      self.embeddings,
-                      allow_dangerous_deserialization=True
-                  )
-                  load_time = time.time() - start_time
-                  logger.info(f"Loaded FAISS index in {load_time:.4f} seconds")
-              else:
-                  # Create new index if not exists
-                  logger.info("Creating new FAISS index")
+              # Check AstraDB credentials
+              if not ASTRA_DB_API_ENDPOINT or not ASTRA_DB_APPLICATION_TOKEN:
+                  raise ValueError("AstraDB credentials not found. Please set ASTRADB_ENDPOINT and ASTRADB_TOKEN environment variables.")
+              
+              # Connect to AstraDB
+              start_time = time.time()
+              self._vector_store = AstraDBVectorStore(
+                  api_endpoint=ASTRA_DB_API_ENDPOINT,
+                  application_token=ASTRA_DB_APPLICATION_TOKEN,
+                  collection_name=ASTRA_DB_COLLECTION_NAME,
+                  embedding=self.embeddings
+              )
+              connect_time = time.time() - start_time
+              logger.info(f"Connected to AstraDB in {connect_time:.4f} seconds")
+              
+              # Check if collection has documents
+              doc_count = self._vector_store.collection_count()
+              if doc_count == 0:
+                  logger.info("Collection is empty, creating documents...")
                   documents = self._load_documents()
                   start_time = time.time()
-                  self._vector_store = FAISS.from_documents(
-                      documents, 
-                      self.embeddings
-                  )
+                  self._vector_store.add_documents(documents)
                   create_time = time.time() - start_time
-                  logger.info(f"Created FAISS index in {create_time:.4f} seconds")
-                  
-                  # Save the index
-                  self._vector_store.save_local(FAISS_INDEX_PATH)
-                  logger.info(f"Saved FAISS index to {FAISS_INDEX_PATH}")
+                  logger.info(f"Added documents to collection in {create_time:.4f} seconds")
           except Exception as e:
               logger.error(f"Error initializing vector store: {e}")
               raise
@@ -237,9 +247,9 @@ examples:
   vector_store_manager = VectorStoreManager()
   results = vector_store_manager.search("What are the key recommendations?")
   
-  output: "Correctly implemented singleton pattern for FAISS vector store with performance monitoring"
+  output: "Correctly implemented singleton pattern for AstraDB vector store with performance monitoring"
 
 metadata:
   priority: high
-  version: 2.0
+  version: 3.0
 </rule> 

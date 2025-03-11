@@ -1,6 +1,11 @@
 ---
 description: Comprehensive guide to understanding and modifying the National AI Task Force Agent project (the current project)
-globs: *.py,*.md,requirements.txt,.env*
+globs: *.py,*.md, requirements.txt
+alwaysApply: false
+---
+---
+description: Comprehensive guide to understanding and modifying the National AI Task Force Agent project (the current project)
+globs: *.py,*.md, requirements.txt
 alwaysApply: false
 ---
 ---
@@ -44,8 +49,9 @@ actions:
   The project follows a modular architecture with these key components:
 
   1. **Vector Store (`rag.py`)**: 
-     - Creates an in-memory vector store from the National AI Task Force PDF
-     - Uses sentence-transformers/all-mpnet-base-v2 for embeddings
+     - Creates a cloud-based AstraDB vector store from the National AI Task Force PDF
+     - Uses PyMuPDF4LLMLoader to load the PDF by page
+     - Uses sentence-transformers/all-MiniLM-L6-v2 for embeddings
      - Handles document chunking and retrieval
 
   2. **Agent Implementation (`agent.py`)**:
@@ -64,7 +70,7 @@ actions:
 
   5. **Configuration Files**:
      - `requirements.txt`: Project dependencies
-     - `.env`: Environment variables (API keys)
+     - `.env`: Environment variables (API keys for GROQ and AstraDB)
      - `.env.example`: Template for environment variables
 
   6. **Documentation**:
@@ -78,6 +84,7 @@ actions:
   1. **Vector Store Modifications**:
      - Maintain chunk size (1000) and overlap (200) parameters unless explicitly requested
      - Use the HuggingFaceEmbeddings with the specified model
+     - Use AstraDB for the vector store with proper credentials
      - Preserve the singleton pattern for vector store initialization
 
   2. **Agent Modifications**:
@@ -110,7 +117,7 @@ actions:
   - **Vector Store**:
     - `CHUNK_SIZE = 1000`  
     - `CHUNK_OVERLAP = 200`
-    - `EMBEDDING_MODEL = "sentence-transformers/all-mpnet-base-v2"`
+    - `EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"`
 
   - **Agent Models**:
     - `llama3` (default)

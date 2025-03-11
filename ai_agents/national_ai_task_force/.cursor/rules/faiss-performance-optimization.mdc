@@ -3,6 +3,11 @@ description: Performance optimization techniques for FAISS vector stores in the 
 globs: *.py
 alwaysApply: false
 ---
+---
+description: Performance optimization techniques for FAISS vector stores in the National AI Task Force project
+globs: *.py
+alwaysApply: false
+---
 # FAISS Performance Optimization
 
 <rule>
