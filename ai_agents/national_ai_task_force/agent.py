@@ -3,12 +3,12 @@ National AI Task Force Agent using LangGraph and GROQ models
 
 This module implements a conversational agent that can search and analyze 
 information from the National AI Task Force documents using LangGraph's 
-ReAct agent architecture with GROQ models.
+pre-built ReAct agent with GROQ models.
 """
 
 import logging
 import os
-from typing import Optional
+from typing import List, Dict, Any
 
 # LangChain and LangGraph imports
 from langchain_core.messages import AIMessage, HumanMessage
@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 class NationalAITaskForceAgent:
     """
     A conversational agent that can search and analyze information from 
-    the National AI Task Force documents using LangGraph's ReAct agent.
+    the National AI Task Force documents using LangGraph's pre-built ReAct agent.
     """
     
     # Available models from GROQ
@@ -51,7 +51,7 @@ class NationalAITaskForceAgent:
         """
         self.model_name = model_name
         self.agent = None
-        self.memory = {}
+        self.memory_saver = None
         
         # Initialize the agent
         try:
@@ -63,7 +63,7 @@ class NationalAITaskForceAgent:
     
     def _initialize_agent(self) -> None:
         """
-        Initialize the LangGraph ReAct agent with the GROQ model.
+        Initialize the LangGraph pre-built ReAct agent with the GROQ model.
         """
         try:
             # Get API key from environment variable
@@ -82,26 +82,28 @@ class NationalAITaskForceAgent:
             )
             
             # Define the system prompt for the agent
-            system_prompt = """You are a helpful AI assistant for the National AI Task Force recent policy recommendation document. 
-            Your role is to provide information and analysis based on the National AI Task Force 
-            document. When asked a question about the National AI Task Force, use the search_national_ai_task_force tool to find 
-            relevant information, and then provide a conversational response based on that information.
+            # This prompt instructs the agent to use the search results as context
+            system_prompt = """You are a helpful AI assistant for the National AI Task Force. You will be asked question question about the National AI Task Force and other general queries. In relation to the National AI Task Force use: search_national_ai_task_force. Everything else should be answered normally. Even though it won't be said specifically in many of the queries you are being asked about the document unless told otherwise. We are based on Jamaica.
             
-            Be thorough and informative in your responses, but maintain a conversational and 
-            helpful tone. If you don't know the answer or can't find relevant information, 
-            be honest about it."""
+            When using the search tool:
+            1. Use the search results as your primary source of information
+            2. If the search results don't contain enough information to answer fully, acknowledge this limitation
+            3. Be thorough and informative in your responses, but maintain a conversational and helpful tone
+            4. Do not reference the search process in your final response (e.g., don't say "According to the search results...")
+            5. If you don't know the answer or can't find relevant information, be honest about it
+            """
             
             # Initialize the memory saver for conversation history
             logger.info("Initializing conversation memory")
-            memory_saver = InMemorySaver()
+            self.memory_saver = InMemorySaver()
             
-            # Create the ReAct agent
-            logger.info("Creating ReAct agent with the search tool")
+            # Create the pre-built ReAct agent
+            logger.info("Creating pre-built ReAct agent with the search tool")
             self.agent = create_react_agent(
                 llm,
                 [search_national_ai_task_force],
                 prompt=system_prompt,
-                checkpointer=memory_saver,
+                checkpointer=self.memory_saver,
             )
             
             logger.info("Agent successfully created")
@@ -121,7 +123,7 @@ class NationalAITaskForceAgent:
             The thread ID
         """
         try:
-            # With InMemorySaver in LangGraph 0.3.1, we don't need to explicitly check
+            # With InMemorySaver in LangGraph, we don't need to explicitly check
             # if a thread exists. When we invoke the agent with a new thread_id,
             # LangGraph will automatically create it if it doesn't exist.
             logger.info(f"Using conversation thread: {thread_id}")
@@ -183,7 +185,7 @@ class NationalAITaskForceAgent:
         Args:
             thread_id: The thread ID to reset (default: "default")
         """
-        # In LangGraph 0.3.1, with InMemorySaver, we can't directly delete threads
+        # In LangGraph, we can't directly delete threads with InMemorySaver
         # as the API doesn't expose this functionality in a straightforward way.
         # The best approach is to simply use a new thread_id when you want to start
         # a fresh conversation.
@@ -210,6 +212,3 @@ def main():
     except Exception as e:
         logger.error(f"Error in main: {e}")
         print(f"Error: {e}")
-
-if __name__ == "__main__":
-    main()

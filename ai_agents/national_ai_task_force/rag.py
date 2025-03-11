@@ -29,14 +29,14 @@ logger = logging.getLogger(__name__)
 
 # Constants
 PDF_PATH = os.path.join("docs", "National-Artificial-Intelligence-Task-Force-Policy-Recommendations-Final-1.pdf")
-CHUNK_SIZE = 1000
+CHUNK_SIZE = 2000
 CHUNK_OVERLAP = 200
-EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+EMBEDDING_MODEL = "BAAI/bge-base-en-v1.5"
 
 # AstraDB Configuration
 ASTRA_DB_API_ENDPOINT = os.getenv("ASTRADB_ENDPOINT")
 ASTRA_DB_APPLICATION_TOKEN = os.getenv("ASTRADB_TOKEN")
-ASTRA_DB_COLLECTION_NAME = os.getenv("ASTRADB_COLLECTION_NAME", "national_ai_task_force2")
+ASTRA_DB_COLLECTION_NAME = "national_ai_task_force3"
 
 class NationalAITaskForceVectorStore:
     """
@@ -437,5 +437,6 @@ def main():
         
     print("\nDemo completed. Check the logs for more details.")
 
-if __name__ == "__main__":
-    main()
+
+#if __name__ == "__main__":
+#    main()

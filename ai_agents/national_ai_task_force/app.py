@@ -224,7 +224,3 @@ with st.sidebar:
     It maintains conversation context across multiple interactions and uses 
     semantic search to find relevant information in the documents.
     """)
-
-if __name__ == "__main__":
-    # This will only run when the script is executed directly
-    pass
