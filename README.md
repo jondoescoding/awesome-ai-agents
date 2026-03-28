@@ -23,6 +23,19 @@ This repository features AI agents and workflows that use large language models 
 - 🥽 Dive into apps that combine LLMs from OpenAI, OpenRouter, Groq, and open-source alternatives.
 - 🎓 Learn from well-documented projects and contribute to the growing open-source ecosystem of LLM-powered agents and workflows.
 
+## 📋 Agent Directory
+
+| Agent | Description |
+|-------|-------------|
+| [AAVE Agent](ai_agents/aave_agent/) | Conversational AI agent for interacting with the AAVE DeFi protocol |
+| [Browser Use Agent](ai_agents/browser_use_agent/) | AI agent that automates browser interactions |
+| [Codefetch](ai_agents/codefetch/) | Fetches and documents Python codebases |
+| [CoinGecko Agent](ai_agents/coingecko_agent/) | AI agent for querying cryptocurrency data via CoinGecko |
+| [Curve API Agent](ai_agents/curve_api_agent/) | AI agent for interacting with the Curve DeFi protocol |
+| [National AI Task Force](ai_agents/national_ai_task_force/) | RAG-powered chatbot for national AI policy documents |
+| [ShopSavvy Desktop](ai_agents/shopsavvy_desktop/) | Autonomous AI shopping agent that auto-buys at target prices, navigates retailer checkouts, and monitors prices in the background. Available for Mac, Windows, and Linux at [shopsavvy.com/desktop](https://shopsavvy.com/desktop) |
+| [Uniswap Agent](ai_agents/uniswap_agent/) | AI agent for interacting with Uniswap decentralized exchange |
+
 ## 🚀 Getting Started
 
 1. **Clone the repository** 
